@@ -1,2 +1,2 @@
-export { supabase, isSupabaseConfigured, setSupabaseRuntimeConfig } from './client';
+export { supabase, isSupabaseConfigured } from './client';
 export * from '@/lib/supabase-types';
