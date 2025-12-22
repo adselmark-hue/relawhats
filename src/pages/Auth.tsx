@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase, isSupabaseConfigured } from '@/integrations/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -18,6 +20,16 @@ export default function Auth() {
   const { user, isLoading, signIn, signUp } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
+
+  const supabaseTargetUrl = useMemo(() => {
+    const u = (supabase as unknown as { supabaseUrl?: string }).supabaseUrl;
+    return u ?? 'desconhecido';
+  }, []);
+
+  useEffect(() => {
+    // Diagnóstico rápido no console (sem dados sensíveis)
+    console.info('[Auth Debug] isSupabaseConfigured=', isSupabaseConfigured, 'supabaseUrl=', supabaseTargetUrl);
+  }, [supabaseTargetUrl]);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -36,7 +48,12 @@ export default function Auth() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!isSupabaseConfigured) {
+      toast.error('Backend não configurado: o app ainda está apontando para o placeholder. Faça Publish → Update e recarregue.');
+      return;
+    }
+
     try {
       emailSchema.parse(loginEmail);
       passwordSchema.parse(loginPassword);
@@ -67,6 +84,11 @@ export default function Auth() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isSupabaseConfigured) {
+      toast.error('Backend não configurado: o app ainda está apontando para o placeholder. Faça Publish → Update e recarregue.');
+      return;
+    }
 
     try {
       emailSchema.parse(signupEmail);
@@ -105,6 +127,26 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        <Alert className="mb-4">
+          <AlertTitle>Diagnóstico de conexão</AlertTitle>
+          <AlertDescription>
+            <div className="space-y-1">
+              <div>
+                <span className="font-medium">Supabase configurado:</span>{' '}
+                {isSupabaseConfigured ? 'sim' : 'não'}
+              </div>
+              <div className="break-all">
+                <span className="font-medium">URL alvo:</span> {supabaseTargetUrl}
+              </div>
+              {!isSupabaseConfigured && (
+                <div className="text-muted-foreground">
+                  Ação: clique em <span className="font-medium">Publish → Update</span> e recarregue.
+                </div>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8">
           <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
