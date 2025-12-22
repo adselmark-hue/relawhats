@@ -1,0 +1,284 @@
+import { useState } from "react";
+import {
+  Link2,
+  Check,
+  X,
+  Settings,
+  RefreshCw,
+  ExternalLink,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+interface Connection {
+  id: string;
+  platform: "meta" | "google";
+  name: string;
+  status: "connected" | "disconnected" | "error";
+  email?: string;
+  accountsCount?: number;
+  lastSync?: string;
+}
+
+const mockConnections: Connection[] = [
+  {
+    id: "1",
+    platform: "meta",
+    name: "Meta Business",
+    status: "connected",
+    email: "marketing@empresa.com",
+    accountsCount: 5,
+    lastSync: "Há 2 horas",
+  },
+  {
+    id: "2",
+    platform: "google",
+    name: "Google Ads",
+    status: "disconnected",
+  },
+];
+
+export default function Connections() {
+  const [connections, setConnections] = useState<Connection[]>(mockConnections);
+
+  const handleConnect = (platform: "meta" | "google") => {
+    toast.info(`Iniciando conexão com ${platform === "meta" ? "Meta Ads" : "Google Ads"}...`);
+  };
+
+  const handleDisconnect = (id: string) => {
+    setConnections((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, status: "disconnected" as const, email: undefined, accountsCount: undefined } : c
+      )
+    );
+    toast.success("Conexão removida com sucesso");
+  };
+
+  const handleSync = (id: string) => {
+    toast.info("Sincronizando contas...");
+    setTimeout(() => {
+      toast.success("Contas sincronizadas!");
+    }, 2000);
+  };
+
+  const getConnection = (platform: "meta" | "google") =>
+    connections.find((c) => c.platform === platform);
+
+  const metaConnection = getConnection("meta");
+  const googleConnection = getConnection("google");
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Conexões</h1>
+        <p className="text-muted-foreground mt-1">
+          Gerencie suas conexões com plataformas de anúncios
+        </p>
+      </div>
+
+      {/* Connections Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Meta Ads */}
+        <Card className="border-border bg-card overflow-hidden">
+          <CardHeader className="border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.92 3.78-3.92 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z" />
+                  </svg>
+                </div>
+                <div>
+                  <CardTitle className="text-foreground">Meta Ads</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Facebook & Instagram Ads
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  metaConnection?.status === "connected"
+                    ? "border-success/30 bg-success/10 text-success"
+                    : metaConnection?.status === "error"
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border-muted-foreground/30 bg-muted text-muted-foreground"
+                )}
+              >
+                {metaConnection?.status === "connected" ? (
+                  <>
+                    <Check className="h-3 w-3 mr-1" />
+                    Conectado
+                  </>
+                ) : metaConnection?.status === "error" ? (
+                  <>
+                    <X className="h-3 w-3 mr-1" />
+                    Erro
+                  </>
+                ) : (
+                  "Desconectado"
+                )}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {metaConnection?.status === "connected" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">E-mail</p>
+                    <p className="font-medium text-foreground">{metaConnection.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Contas</p>
+                    <p className="font-medium text-foreground">{metaConnection.accountsCount} conectadas</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Última sincronização</p>
+                    <p className="font-medium text-foreground">{metaConnection.lastSync}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => handleSync(metaConnection.id)}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Sincronizar
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Configurar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-destructive hover:text-destructive"
+                    onClick={() => handleDisconnect(metaConnection.id)}
+                  >
+                    <X className="h-4 w-4" />
+                    Desconectar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground mb-4">
+                  Conecte sua conta Meta Business para acessar suas contas de anúncio.
+                </p>
+                <Button
+                  className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+                  onClick={() => handleConnect("meta")}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Conectar com Meta
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Google Ads */}
+        <Card className="border-border bg-card overflow-hidden">
+          <CardHeader className="border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-green-500/20 flex items-center justify-center">
+                  <svg className="w-8 h-8" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                </div>
+                <div>
+                  <CardTitle className="text-foreground">Google Ads</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Search, Display & YouTube
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  googleConnection?.status === "connected"
+                    ? "border-success/30 bg-success/10 text-success"
+                    : googleConnection?.status === "error"
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border-muted-foreground/30 bg-muted text-muted-foreground"
+                )}
+              >
+                {googleConnection?.status === "connected" ? (
+                  <>
+                    <Check className="h-3 w-3 mr-1" />
+                    Conectado
+                  </>
+                ) : googleConnection?.status === "error" ? (
+                  <>
+                    <X className="h-3 w-3 mr-1" />
+                    Erro
+                  </>
+                ) : (
+                  "Desconectado"
+                )}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {googleConnection?.status === "connected" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">E-mail</p>
+                    <p className="font-medium text-foreground">{googleConnection.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Contas</p>
+                    <p className="font-medium text-foreground">{googleConnection.accountsCount} conectadas</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    Sincronizar
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Configurar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                    Desconectar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground mb-4">
+                  Conecte sua conta Google Ads para acessar suas campanhas.
+                </p>
+                <Button
+                  className="gap-2 bg-gradient-to-r from-blue-500 via-green-500 to-yellow-500 hover:opacity-90 text-white"
+                  onClick={() => handleConnect("google")}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Conectar com Google
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
