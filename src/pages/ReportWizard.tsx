@@ -12,6 +12,7 @@ import {
   Users,
   MessageSquare,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useConnections } from "@/hooks/useConnections";
+import { useReports } from "@/hooks/useReports";
+import { useWhatsAppAccounts } from "@/hooks/useWhatsAppAccounts";
+import { useAuth } from "@/contexts/AuthContext";
 
 const steps = [
   { id: 1, title: "Início", icon: Sparkles },
@@ -57,30 +62,36 @@ const variables = [
   { tag: "<CUSTO_POR_CONVERSÃO>", description: "Custo por conversão" },
 ];
 
-const mockAdAccounts = [
-  { id: "1", name: "Cliente ABC - Principal", platform: "meta" },
-  { id: "2", name: "Cliente ABC - Remarketing", platform: "meta" },
-  { id: "3", name: "E-commerce XYZ", platform: "meta" },
-  { id: "4", name: "Loja Virtual", platform: "google" },
-  { id: "5", name: "Campanha Institucional", platform: "google" },
+const weekDays = [
+  { id: "mon", label: "Seg", num: 1 },
+  { id: "tue", label: "Ter", num: 2 },
+  { id: "wed", label: "Qua", num: 3 },
+  { id: "thu", label: "Qui", num: 4 },
+  { id: "fri", label: "Sex", num: 5 },
+  { id: "sat", label: "Sáb", num: 6 },
+  { id: "sun", label: "Dom", num: 0 },
 ];
 
-const weekDays = [
-  { id: "mon", label: "Seg" },
-  { id: "tue", label: "Ter" },
-  { id: "wed", label: "Qua" },
-  { id: "thu", label: "Qui" },
-  { id: "fri", label: "Sex" },
-  { id: "sat", label: "Sáb" },
-  { id: "sun", label: "Dom" },
-];
+const periodMap: Record<string, string> = {
+  today: "today",
+  yesterday: "yesterday",
+  last7: "last_7_days",
+  last30: "last_30_days",
+  thisMonth: "this_month",
+};
 
 export default function ReportWizard() {
   const navigate = useNavigate();
+  const { organizationId } = useAuth();
+  const { connections, adAccounts, getConnectionByPlatform, getAccountsByConnection } = useConnections();
+  const { createReport } = useReports();
+  const { whatsappAccounts } = useWhatsAppAccounts();
+  
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    channel: "",
+    channel: "" as "" | "meta" | "google",
     connection: "",
     adAccounts: [] as string[],
     messageTemplate: `📊 *Relatório de Performance*\n\n📅 Data: <DATA>\n\n💰 *Investimento*: <VALOR_INVESTIDO>\n👁 Impressões: <IMPRESSÕES>\n👆 Cliques: <CLIQUES>\n📈 CTR: <CTR>\n💵 CPC: <CPC>\n🎯 Conversões: <CONVERSÕES>\n💲 Custo/Conversão: <CUSTO_POR_CONVERSÃO>\n\n_Relatório gerado automaticamente_`,
@@ -93,6 +104,14 @@ export default function ReportWizard() {
     scheduleTime: "08:00",
     scheduleDays: ["mon", "tue", "wed", "thu", "fri"],
   });
+
+  // Get available ad accounts based on selected channel
+  const availableAccounts = formData.channel 
+    ? adAccounts.filter(acc => {
+        const connection = connections.find(c => c.id === acc.connection_id);
+        return connection?.platform === formData.channel;
+      })
+    : [];
 
   const handleNext = () => {
     if (currentStep < 5) {
@@ -108,9 +127,49 @@ export default function ReportWizard() {
     }
   };
 
-  const handleSave = () => {
-    toast.success("Relatório criado com sucesso!");
-    navigate("/reports");
+  const handleSave = async () => {
+    if (!organizationId) {
+      toast.error("Organização não encontrada");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Calculate next_send_at based on schedule
+      const now = new Date();
+      const [hours, minutes] = formData.scheduleTime.split(":").map(Number);
+      const nextSend = new Date(now);
+      nextSend.setHours(hours, minutes, 0, 0);
+      if (nextSend <= now) {
+        nextSend.setDate(nextSend.getDate() + 1);
+      }
+
+      const scheduleDaysNumbers = formData.scheduleDays.map(
+        day => weekDays.find(w => w.id === day)?.num ?? 0
+      );
+
+      await createReport.mutateAsync({
+        organization_id: organizationId,
+        name: formData.name,
+        frequency: (formData.frequency || "daily") as "daily" | "weekly" | "monthly" | "custom",
+        schedule_time: formData.scheduleTime,
+        schedule_days: scheduleDaysNumbers,
+        period: (periodMap[formData.period] || "yesterday") as "today" | "yesterday" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "custom",
+        whatsapp_account_id: formData.whatsappAccount || null,
+        recipient_phone: formData.recipientType === "private" ? formData.recipientNumber : null,
+        recipient_group_id: formData.recipientType === "group" ? formData.recipientGroup : null,
+        is_active: true,
+        next_send_at: nextSend.toISOString(),
+      });
+
+      toast.success("Relatório criado com sucesso!");
+      navigate("/reports");
+    } catch (error) {
+      console.error("Error creating report:", error);
+      toast.error("Erro ao criar relatório");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSendTest = () => {
@@ -130,7 +189,7 @@ export default function ReportWizard() {
   const renderPreview = () => {
     let preview = formData.messageTemplate;
     const replacements: Record<string, string> = {
-      "<DATA>": "20/01/2024",
+      "<DATA>": new Date().toLocaleDateString("pt-BR"),
       "<VALOR_INVESTIDO>": "R$ 5.230,00",
       "<IMPRESSÕES>": "125.430",
       "<CLIQUES>": "3.250",
@@ -188,7 +247,7 @@ export default function ReportWizard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div
-                onClick={() => setFormData({ ...formData, channel: "meta" })}
+                onClick={() => setFormData({ ...formData, channel: "meta", connection: "", adAccounts: [] })}
                 className={cn(
                   "platform-card",
                   formData.channel === "meta" && "selected"
@@ -204,10 +263,15 @@ export default function ReportWizard() {
                   <p className="text-sm text-muted-foreground mt-1">
                     Facebook & Instagram
                   </p>
+                  {getConnectionByPlatform("meta")?.status === "connected" && (
+                    <Badge variant="outline" className="mt-2 border-success/30 bg-success/10 text-success">
+                      Conectado
+                    </Badge>
+                  )}
                 </div>
               </div>
               <div
-                onClick={() => setFormData({ ...formData, channel: "google" })}
+                onClick={() => setFormData({ ...formData, channel: "google", connection: "", adAccounts: [] })}
                 className={cn(
                   "platform-card",
                   formData.channel === "google" && "selected"
@@ -226,59 +290,47 @@ export default function ReportWizard() {
                   <p className="text-sm text-muted-foreground mt-1">
                     Search, Display & YouTube
                   </p>
+                  {getConnectionByPlatform("google")?.status === "connected" && (
+                    <Badge variant="outline" className="mt-2 border-success/30 bg-success/10 text-success">
+                      Conectado
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
 
             {formData.channel && (
               <div className="space-y-4 animate-fade-in">
-                <div className="space-y-2">
-                  <Label>Conexão</Label>
-                  <Select
-                    value={formData.connection}
-                    onValueChange={(v) =>
-                      setFormData({ ...formData, connection: v })
-                    }
-                  >
-                    <SelectTrigger className="bg-muted/50 border-border">
-                      <SelectValue placeholder="Selecione uma conexão" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      <SelectItem value="conn1">
-                        Conexão Principal - {formData.channel === "meta" ? "Meta" : "Google"}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Contas de Anúncio</Label>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start bg-muted/50 border-border"
-                      >
-                        <Search className="h-4 w-4 mr-2" />
-                        {formData.adAccounts.length > 0
-                          ? `${formData.adAccounts.length} conta(s) selecionada(s)`
-                          : "Selecionar contas"}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-card border-border">
-                      <DialogHeader>
-                        <DialogTitle>Selecionar Contas de Anúncio</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <Input
-                          placeholder="Buscar conta..."
-                          className="bg-muted/50 border-border"
-                        />
-                        <ScrollArea className="h-[300px]">
-                          <div className="space-y-2">
-                            {mockAdAccounts
-                              .filter((acc) => acc.platform === formData.channel)
-                              .map((account) => (
+                {availableAccounts.length === 0 ? (
+                  <div className="p-4 rounded-lg border border-warning/30 bg-warning/10">
+                    <p className="text-warning text-sm">
+                      Nenhuma conta de anúncio encontrada para {formData.channel === "meta" ? "Meta Ads" : "Google Ads"}. 
+                      Conecte primeiro na página de Conexões.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Contas de Anúncio ({availableAccounts.length} disponíveis)</Label>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start bg-muted/50 border-border"
+                        >
+                          <Search className="h-4 w-4 mr-2" />
+                          {formData.adAccounts.length > 0
+                            ? `${formData.adAccounts.length} conta(s) selecionada(s)`
+                            : "Selecionar contas"}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-card border-border">
+                        <DialogHeader>
+                          <DialogTitle>Selecionar Contas de Anúncio</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <ScrollArea className="h-[300px]">
+                            <div className="space-y-2">
+                              {availableAccounts.map((account) => (
                                 <div
                                   key={account.id}
                                   className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent cursor-pointer"
@@ -294,15 +346,19 @@ export default function ReportWizard() {
                                   <Checkbox
                                     checked={formData.adAccounts.includes(account.id)}
                                   />
-                                  <span className="text-foreground">{account.name}</span>
+                                  <div>
+                                    <span className="text-foreground font-medium">{account.name}</span>
+                                    <p className="text-xs text-muted-foreground">{account.account_id}</p>
+                                  </div>
                                 </div>
                               ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -361,7 +417,7 @@ export default function ReportWizard() {
                         {renderPreview()}
                       </p>
                       <p className="text-[10px] text-muted-foreground text-right mt-2">
-                        08:00
+                        {formData.scheduleTime}
                       </p>
                     </div>
                   </div>
@@ -396,7 +452,17 @@ export default function ReportWizard() {
                       <SelectValue placeholder="Selecione uma conta" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="wpp1">WhatsApp Principal</SelectItem>
+                      {whatsappAccounts.length === 0 ? (
+                        <SelectItem value="_none" disabled>
+                          Nenhuma conta configurada
+                        </SelectItem>
+                      ) : (
+                        whatsappAccounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.name} ({acc.phone_number})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -449,21 +515,15 @@ export default function ReportWizard() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label>Grupo</Label>
-                    <Select
+                    <Label>ID do Grupo</Label>
+                    <Input
+                      placeholder="ID do grupo WhatsApp"
                       value={formData.recipientGroup}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, recipientGroup: v })
+                      onChange={(e) =>
+                        setFormData({ ...formData, recipientGroup: e.target.value })
                       }
-                    >
-                      <SelectTrigger className="bg-muted/50 border-border">
-                        <SelectValue placeholder="Selecione um grupo" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border">
-                        <SelectItem value="grp1">Grupo Marketing</SelectItem>
-                        <SelectItem value="grp2">Equipe Vendas</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      className="bg-muted/50 border-border"
+                    />
                   </div>
                 )}
               </div>
@@ -574,12 +634,12 @@ export default function ReportWizard() {
                   <div>
                     <p className="text-sm text-muted-foreground">Canal</p>
                     <p className="font-medium text-foreground capitalize">
-                      {formData.channel || "Não definido"}
+                      {formData.channel === "meta" ? "Meta Ads" : formData.channel === "google" ? "Google Ads" : "Não definido"}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Frequência</p>
-                    <p className="font-medium text-foreground">
+                    <p className="font-medium text-foreground capitalize">
                       {formData.frequency || "Não definido"}
                     </p>
                   </div>
@@ -616,8 +676,13 @@ export default function ReportWizard() {
               <Button
                 className="flex-1 gap-2 bg-success hover:bg-success/90 text-success-foreground"
                 onClick={handleSave}
+                disabled={isSaving || !formData.name}
               >
-                <Check className="h-4 w-4" />
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
                 Salvar e Ativar
               </Button>
             </div>
