@@ -8,6 +8,7 @@ import {
   Edit,
   Trash2,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,51 +28,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  platforms: ("meta" | "google")[];
-  totalSpend: number;
-  reportsCount: number;
-}
-
-const mockClients: Client[] = [
-  {
-    id: "1",
-    name: "Cliente ABC Ltda",
-    email: "contato@clienteabc.com",
-    phone: "+55 11 99999-9999",
-    platforms: ["meta", "google"],
-    totalSpend: 45230,
-    reportsCount: 24,
-  },
-  {
-    id: "2",
-    name: "E-commerce XYZ",
-    email: "marketing@xyz.com",
-    phone: "+55 21 88888-8888",
-    platforms: ["meta"],
-    totalSpend: 28500,
-    reportsCount: 12,
-  },
-  {
-    id: "3",
-    name: "Loja Virtual Store",
-    email: "ads@lojavirtual.com",
-    phone: "+55 31 77777-7777",
-    platforms: ["google"],
-    totalSpend: 15800,
-    reportsCount: 8,
-  },
-];
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useClients } from "@/hooks/useClients";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Clients() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const { organizationId } = useAuth();
+  const { clients, isLoading, createClient, deleteClient } = useClients();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [newClient, setNewClient] = useState({
     name: "",
     email: "",
@@ -81,7 +56,7 @@ export default function Clients() {
   const filteredClients = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const formatCurrency = (value: number) => {
@@ -90,6 +65,34 @@ export default function Clients() {
       currency: "BRL",
     }).format(value);
   };
+
+  const handleCreate = () => {
+    if (!organizationId || !newClient.name) return;
+
+    createClient.mutate({
+      organization_id: organizationId,
+      name: newClient.name,
+      email: newClient.email || null,
+      phone: newClient.phone || null,
+    });
+    setIsDialogOpen(false);
+    setNewClient({ name: "", email: "", phone: "" });
+  };
+
+  const handleDelete = () => {
+    if (deleteId) {
+      deleteClient.mutate(deleteId);
+      setDeleteId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -114,7 +117,7 @@ export default function Clients() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Nome</Label>
+                <Label>Nome *</Label>
                 <Input
                   placeholder="Nome do cliente ou empresa"
                   value={newClient.name}
@@ -156,8 +159,12 @@ export default function Clients() {
                 </Button>
                 <Button
                   className="bg-primary hover:bg-primary/90"
-                  onClick={() => setIsDialogOpen(false)}
+                  onClick={handleCreate}
+                  disabled={!newClient.name || createClient.isPending}
                 >
+                  {createClient.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Criar Cliente
                 </Button>
               </div>
@@ -195,7 +202,7 @@ export default function Clients() {
                         {client.name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {client.email}
+                        {client.email || "Sem email"}
                       </p>
                     </div>
                   </div>
@@ -216,7 +223,10 @@ export default function Clients() {
                       <DropdownMenuItem className="gap-2 cursor-pointer">
                         <Edit className="h-4 w-4" /> Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2 cursor-pointer text-destructive">
+                      <DropdownMenuItem
+                        className="gap-2 cursor-pointer text-destructive"
+                        onClick={() => setDeleteId(client.id)}
+                      >
                         <Trash2 className="h-4 w-4" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -224,46 +234,26 @@ export default function Clients() {
                 </div>
               </div>
               <div className="p-4 space-y-3">
-                <div className="flex gap-2">
-                  {client.platforms.map((platform) => (
-                    <Badge
-                      key={platform}
-                      variant="outline"
-                      className={
-                        platform === "meta"
-                          ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
-                          : "border-green-500/30 bg-green-500/10 text-green-400"
-                      }
-                    >
-                      {platform === "meta" ? "Meta Ads" : "Google Ads"}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <DollarSign className="h-4 w-4" />
-                    <span>Investimento Reportado</span>
-                  </div>
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(client.totalSpend)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>Relatórios Enviados</span>
-                  </div>
-                  <span className="font-semibold text-foreground">
-                    {client.reportsCount}
-                  </span>
-                </div>
+                {client.phone && (
+                  <p className="text-sm text-muted-foreground">{client.phone}</p>
+                )}
+                <Badge
+                  variant="outline"
+                  className={
+                    client.is_active
+                      ? "border-success/30 bg-success/10 text-success"
+                      : "border-muted-foreground/30 bg-muted text-muted-foreground"
+                  }
+                >
+                  {client.is_active ? "Ativo" : "Inativo"}
+                </Badge>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {filteredClients.length === 0 && (
+      {filteredClients.length === 0 && !isLoading && (
         <div className="empty-state">
           <div className="empty-state-icon">
             <Users className="h-8 w-8 text-muted-foreground" />
@@ -283,6 +273,27 @@ export default function Clients() {
           </Button>
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O cliente será permanentemente excluído.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

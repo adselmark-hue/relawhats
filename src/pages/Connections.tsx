@@ -1,60 +1,28 @@
-import { useState } from "react";
 import {
-  Link2,
   Check,
   X,
   Settings,
   RefreshCw,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-interface Connection {
-  id: string;
-  platform: "meta" | "google";
-  name: string;
-  status: "connected" | "disconnected" | "error";
-  email?: string;
-  accountsCount?: number;
-  lastSync?: string;
-}
-
-const mockConnections: Connection[] = [
-  {
-    id: "1",
-    platform: "meta",
-    name: "Meta Business",
-    status: "connected",
-    email: "marketing@empresa.com",
-    accountsCount: 5,
-    lastSync: "Há 2 horas",
-  },
-  {
-    id: "2",
-    platform: "google",
-    name: "Google Ads",
-    status: "disconnected",
-  },
-];
+import { useConnections } from "@/hooks/useConnections";
 
 export default function Connections() {
-  const [connections, setConnections] = useState<Connection[]>(mockConnections);
+  const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection } = useConnections();
 
   const handleConnect = (platform: "meta" | "google") => {
     toast.info(`Iniciando conexão com ${platform === "meta" ? "Meta Ads" : "Google Ads"}...`);
+    // OAuth flow should be handled via Edge Functions
   };
 
   const handleDisconnect = (id: string) => {
-    setConnections((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, status: "disconnected" as const, email: undefined, accountsCount: undefined } : c
-      )
-    );
-    toast.success("Conexão removida com sucesso");
+    deleteConnection.mutate(id);
   };
 
   const handleSync = (id: string) => {
@@ -64,11 +32,16 @@ export default function Connections() {
     }, 2000);
   };
 
-  const getConnection = (platform: "meta" | "google") =>
-    connections.find((c) => c.platform === platform);
+  const metaConnection = getConnectionByPlatform("meta");
+  const googleConnection = getConnectionByPlatform("google");
 
-  const metaConnection = getConnection("meta");
-  const googleConnection = getConnection("google");
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -130,16 +103,14 @@ export default function Connections() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">E-mail</p>
-                    <p className="font-medium text-foreground">{metaConnection.email}</p>
+                    <p className="text-muted-foreground">Nome</p>
+                    <p className="font-medium text-foreground">{metaConnection.name}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Contas</p>
-                    <p className="font-medium text-foreground">{metaConnection.accountsCount} conectadas</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Última sincronização</p>
-                    <p className="font-medium text-foreground">{metaConnection.lastSync}</p>
+                    <p className="font-medium text-foreground">
+                      {getAccountsByConnection(metaConnection.id).length} conectadas
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-2 pt-2">
@@ -161,6 +132,7 @@ export default function Connections() {
                     size="sm"
                     className="gap-2 text-destructive hover:text-destructive"
                     onClick={() => handleDisconnect(metaConnection.id)}
+                    disabled={deleteConnection.isPending}
                   >
                     <X className="h-4 w-4" />
                     Desconectar
@@ -235,16 +207,23 @@ export default function Connections() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">E-mail</p>
-                    <p className="font-medium text-foreground">{googleConnection.email}</p>
+                    <p className="text-muted-foreground">Nome</p>
+                    <p className="font-medium text-foreground">{googleConnection.name}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Contas</p>
-                    <p className="font-medium text-foreground">{googleConnection.accountsCount} conectadas</p>
+                    <p className="font-medium text-foreground">
+                      {getAccountsByConnection(googleConnection.id).length} conectadas
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => handleSync(googleConnection.id)}
+                  >
                     <RefreshCw className="h-4 w-4" />
                     Sincronizar
                   </Button>
@@ -256,6 +235,8 @@ export default function Connections() {
                     variant="outline"
                     size="sm"
                     className="gap-2 text-destructive hover:text-destructive"
+                    onClick={() => handleDisconnect(googleConnection.id)}
+                    disabled={deleteConnection.isPending}
                   >
                     <X className="h-4 w-4" />
                     Desconectar

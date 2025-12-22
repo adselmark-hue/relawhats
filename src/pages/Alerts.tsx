@@ -9,12 +9,13 @@ import {
   Edit,
   Trash2,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -45,81 +46,76 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useAlerts } from "@/hooks/useAlerts";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface Alert {
-  id: string;
-  name: string;
-  type: "balance" | "error";
-  channel: "meta" | "google";
-  status: boolean;
-  threshold?: number;
-  lastTriggered?: string;
-}
-
-const mockAlerts: Alert[] = [
-  {
-    id: "1",
-    name: "Saldo Baixo - Cliente ABC",
-    type: "balance",
-    channel: "meta",
-    status: true,
-    threshold: 100,
-    lastTriggered: "2024-01-18 14:30",
-  },
-  {
-    id: "2",
-    name: "Erro API - E-commerce XYZ",
-    type: "error",
-    channel: "google",
-    status: true,
-    lastTriggered: "2024-01-15 09:00",
-  },
-  {
-    id: "3",
-    name: "Saldo Crítico - Loja Virtual",
-    type: "balance",
-    channel: "meta",
-    status: false,
-    threshold: 50,
-  },
-];
-
-const variables = [
-  { tag: "<CA>", description: "Conta de anúncio" },
-  { tag: "<SALDO>", description: "Saldo atual" },
-  { tag: "<TARGET>", description: "Valor alvo" },
-];
+const typeLabels: Record<string, string> = {
+  balance: "Saldo",
+  error: "Erro",
+  performance: "Performance",
+};
 
 export default function Alerts() {
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
+  const { organizationId } = useAuth();
+  const { alerts, isLoading, createAlert, toggleStatus, deleteAlert } = useAlerts();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [newAlert, setNewAlert] = useState({
     name: "",
-    type: "balance" as "balance" | "error",
-    channel: "meta" as "meta" | "google",
+    type: "balance" as "balance" | "error" | "performance",
     threshold: 100,
     account: "",
     messageTemplate: `⚠️ *Alerta de Saldo*\n\n🏷 Conta: <CA>\n💰 Saldo atual: <SALDO>\n🎯 Limite: <TARGET>\n\n_Verifique sua conta imediatamente_`,
   });
 
-  const toggleAlertStatus = (id: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: !a.status } : a))
-    );
-  };
-
   const filteredAlerts = alerts.filter((a) =>
     a.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleCreate = () => {
+    if (!organizationId || !newAlert.name) return;
+
+    createAlert.mutate({
+      organization_id: organizationId,
+      name: newAlert.name,
+      type: newAlert.type,
+      threshold_value: newAlert.threshold,
+    });
+    setIsDialogOpen(false);
+    setNewAlert({
+      name: "",
+      type: "balance",
+      threshold: 100,
+      account: "",
+      messageTemplate: `⚠️ *Alerta de Saldo*\n\n🏷 Conta: <CA>\n💰 Saldo atual: <SALDO>\n🎯 Limite: <TARGET>\n\n_Verifique sua conta imediatamente_`,
+    });
+  };
+
+  const handleDelete = () => {
+    if (deleteId) {
+      deleteAlert.mutate(deleteId);
+      setDeleteId(null);
+    }
+  };
 
   const renderPreview = () => {
     let preview = newAlert.messageTemplate;
     const replacements: Record<string, string> = {
       "<CA>": "Cliente ABC - Principal",
       "<SALDO>": "R$ 45,00",
-      "<TARGET>": "R$ 100,00",
+      "<TARGET>": `R$ ${newAlert.threshold},00`,
     };
 
     Object.entries(replacements).forEach(([tag, value]) => {
@@ -128,6 +124,14 @@ export default function Alerts() {
 
     return preview;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -154,7 +158,7 @@ export default function Alerts() {
               <Tabs
                 value={newAlert.type}
                 onValueChange={(v) =>
-                  setNewAlert({ ...newAlert, type: v as "balance" | "error" })
+                  setNewAlert({ ...newAlert, type: v as "balance" | "error" | "performance" })
                 }
               >
                 <TabsList className="grid grid-cols-2 bg-muted">
@@ -177,7 +181,7 @@ export default function Alerts() {
                 <TabsContent value="balance" className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Nome do Alerta</Label>
+                      <Label>Nome do Alerta *</Label>
                       <Input
                         placeholder="Ex: Saldo Baixo - Cliente ABC"
                         value={newAlert.name}
@@ -186,40 +190,6 @@ export default function Alerts() {
                         }
                         className="bg-muted/50 border-border"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Canal</Label>
-                      <Select
-                        value={newAlert.channel}
-                        onValueChange={(v) =>
-                          setNewAlert({ ...newAlert, channel: v as "meta" | "google" })
-                        }
-                      >
-                        <SelectTrigger className="bg-muted/50 border-border">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border">
-                          <SelectItem value="meta">Meta Ads</SelectItem>
-                          <SelectItem value="google">Google Ads</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Conta de Anúncio</Label>
-                      <Select
-                        value={newAlert.account}
-                        onValueChange={(v) =>
-                          setNewAlert({ ...newAlert, account: v })
-                        }
-                      >
-                        <SelectTrigger className="bg-muted/50 border-border">
-                          <SelectValue placeholder="Selecione uma conta" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border">
-                          <SelectItem value="acc1">Cliente ABC - Principal</SelectItem>
-                          <SelectItem value="acc2">E-commerce XYZ</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Saldo Mínimo (R$)</Label>
@@ -239,52 +209,16 @@ export default function Alerts() {
                 </TabsContent>
 
                 <TabsContent value="error" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Nome do Alerta</Label>
-                      <Input
-                        placeholder="Ex: Erro API - Cliente ABC"
-                        value={newAlert.name}
-                        onChange={(e) =>
-                          setNewAlert({ ...newAlert, name: e.target.value })
-                        }
-                        className="bg-muted/50 border-border"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Canal</Label>
-                      <Select
-                        value={newAlert.channel}
-                        onValueChange={(v) =>
-                          setNewAlert({ ...newAlert, channel: v as "meta" | "google" })
-                        }
-                      >
-                        <SelectTrigger className="bg-muted/50 border-border">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border">
-                          <SelectItem value="meta">Meta Ads</SelectItem>
-                          <SelectItem value="google">Google Ads</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label>Conta de Anúncio</Label>
-                      <Select
-                        value={newAlert.account}
-                        onValueChange={(v) =>
-                          setNewAlert({ ...newAlert, account: v })
-                        }
-                      >
-                        <SelectTrigger className="bg-muted/50 border-border">
-                          <SelectValue placeholder="Selecione uma conta" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border">
-                          <SelectItem value="acc1">Cliente ABC - Principal</SelectItem>
-                          <SelectItem value="acc2">E-commerce XYZ</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Nome do Alerta *</Label>
+                    <Input
+                      placeholder="Ex: Erro API - Cliente ABC"
+                      value={newAlert.name}
+                      onChange={(e) =>
+                        setNewAlert({ ...newAlert, name: e.target.value })
+                      }
+                      className="bg-muted/50 border-border"
+                    />
                   </div>
                 </TabsContent>
               </Tabs>
@@ -315,8 +249,12 @@ export default function Alerts() {
                 </Button>
                 <Button
                   className="bg-primary hover:bg-primary/90"
-                  onClick={() => setIsDialogOpen(false)}
+                  onClick={handleCreate}
+                  disabled={!newAlert.name || createAlert.isPending}
                 >
+                  {createAlert.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Criar Alerta
                 </Button>
               </div>
@@ -346,9 +284,7 @@ export default function Alerts() {
               <TableHead className="text-muted-foreground">Status</TableHead>
               <TableHead className="text-muted-foreground">Nome</TableHead>
               <TableHead className="text-muted-foreground">Tipo</TableHead>
-              <TableHead className="text-muted-foreground">Canal</TableHead>
               <TableHead className="text-muted-foreground">Limite</TableHead>
-              <TableHead className="text-muted-foreground">Último Disparo</TableHead>
               <TableHead className="text-muted-foreground w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -357,8 +293,10 @@ export default function Alerts() {
               <TableRow key={alert.id} className="border-border">
                 <TableCell>
                   <Switch
-                    checked={alert.status}
-                    onCheckedChange={() => toggleAlertStatus(alert.id)}
+                    checked={alert.is_active}
+                    onCheckedChange={(checked) =>
+                      toggleStatus.mutate({ id: alert.id, is_active: checked })
+                    }
                     className="data-[state=checked]:bg-success"
                   />
                 </TableCell>
@@ -372,26 +310,11 @@ export default function Alerts() {
                         : "border-destructive/30 bg-destructive/10 text-destructive"
                     )}
                   >
-                    {alert.type === "balance" ? "Saldo" : "Erro"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      alert.channel === "meta"
-                        ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
-                        : "border-green-500/30 bg-green-500/10 text-green-400"
-                    )}
-                  >
-                    {alert.channel === "meta" ? "Meta Ads" : "Google Ads"}
+                    {typeLabels[alert.type] || alert.type}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {alert.threshold ? `R$ ${alert.threshold},00` : "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {alert.lastTriggered || "-"}
+                  {alert.threshold_value ? `R$ ${alert.threshold_value},00` : "-"}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -407,7 +330,10 @@ export default function Alerts() {
                       <DropdownMenuItem className="gap-2 cursor-pointer">
                         <Edit className="h-4 w-4" /> Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2 cursor-pointer text-destructive">
+                      <DropdownMenuItem
+                        className="gap-2 cursor-pointer text-destructive"
+                        onClick={() => setDeleteId(alert.id)}
+                      >
                         <Trash2 className="h-4 w-4" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -419,7 +345,7 @@ export default function Alerts() {
         </Table>
       </Card>
 
-      {filteredAlerts.length === 0 && (
+      {filteredAlerts.length === 0 && !isLoading && (
         <div className="empty-state">
           <div className="empty-state-icon">
             <Bell className="h-8 w-8 text-muted-foreground" />
@@ -432,6 +358,27 @@ export default function Alerts() {
           </p>
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir alerta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O alerta será permanentemente excluído.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
