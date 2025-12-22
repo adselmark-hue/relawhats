@@ -2,95 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Metrifiquei Clone - Enterprise Dark Theme Design System */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Deep Dark Theme - Base */
+    --background: 220 20% 7%;
+    --foreground: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Card surfaces */
+    --card: 220 15% 10%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Elevated surfaces */
+    --popover: 220 15% 12%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Electric Blue */
+    --primary: 216 100% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Muted Blue */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted - Subtle backgrounds */
+    --muted: 220 15% 15%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Hover states */
+    --accent: 220 15% 18%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Success - Emerald */
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Warning - Amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
 
-    --radius: 0.5rem;
+    /* Destructive - Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --sidebar-background: 0 0% 98%;
+    /* Borders and inputs */
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
+    --ring: 216 100% 50%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Radius */
+    --radius: 0.75rem;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Sidebar */
+    --sidebar-background: 220 20% 8%;
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 216 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 15% 15%;
+    --sidebar-ring: 216 100% 50%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Custom tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(216, 100%, 50%), hsl(230, 100%, 60%));
+    --gradient-success: linear-gradient(135deg, hsl(160, 84%, 39%), hsl(170, 84%, 45%));
+    --gradient-card: linear-gradient(180deg, hsl(220, 15%, 12%), hsl(220, 15%, 10%));
+    
+    /* WhatsApp colors */
+    --whatsapp-bg: 160 40% 10%;
+    --whatsapp-bubble: 160 70% 18%;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 20px rgba(0, 102, 255, 0.3);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Already dark by default */
   }
 }
 
@@ -99,7 +92,272 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer components {
+  /* Metric cards with gradient border */
+  .metric-card {
+    @apply relative overflow-hidden rounded-xl bg-card p-6 transition-all duration-300;
+    background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)));
+  }
+
+  .metric-card::before {
+    content: '';
+    @apply absolute inset-0 rounded-xl;
+    padding: 1px;
+    background: linear-gradient(180deg, hsl(var(--border)), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Status badges */
+  .badge-success {
+    @apply bg-success/20 text-success border border-success/30;
+  }
+
+  .badge-warning {
+    @apply bg-warning/20 text-warning border border-warning/30;
+  }
+
+  .badge-error {
+    @apply bg-destructive/20 text-destructive border border-destructive/30;
+  }
+
+  .badge-info {
+    @apply bg-primary/20 text-primary border border-primary/30;
+  }
+
+  /* WhatsApp preview */
+  .whatsapp-preview {
+    @apply rounded-xl p-4;
+    background: hsl(var(--whatsapp-bg));
+  }
+
+  .whatsapp-bubble {
+    @apply rounded-lg p-3 max-w-[85%];
+    background: hsl(var(--whatsapp-bubble));
+  }
+
+  /* Wizard stepper */
+  .wizard-step {
+    @apply flex items-center gap-3;
+  }
+
+  .wizard-step-circle {
+    @apply w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300;
+  }
+
+  .wizard-step-circle.active {
+    @apply bg-primary text-primary-foreground shadow-[0_0_20px_rgba(0,102,255,0.4)];
+  }
+
+  .wizard-step-circle.completed {
+    @apply bg-success text-success-foreground;
+  }
+
+  .wizard-step-circle.pending {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  /* Platform cards */
+  .platform-card {
+    @apply relative p-6 rounded-xl border border-border bg-card transition-all duration-300 cursor-pointer;
+  }
+
+  .platform-card:hover {
+    @apply border-primary/50 bg-accent;
+  }
+
+  .platform-card.selected {
+    @apply border-primary bg-primary/10;
+  }
+
+  .platform-card.selected::after {
+    content: '';
+    @apply absolute inset-0 rounded-xl;
+    box-shadow: 0 0 20px rgba(0, 102, 255, 0.2);
+  }
+
+  /* Sidebar navigation */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground transition-all duration-200;
+  }
+
+  .nav-item:hover {
+    @apply bg-accent text-foreground;
+  }
+
+  .nav-item.active {
+    @apply bg-primary/15 text-primary font-medium;
+  }
+
+  /* Toggle switch for status */
+  .status-toggle {
+    @apply relative inline-flex h-6 w-11 items-center rounded-full transition-colors;
+  }
+
+  .status-toggle.active {
+    @apply bg-success;
+  }
+
+  .status-toggle.inactive {
+    @apply bg-muted;
+  }
+
+  /* Data table */
+  .data-table {
+    @apply w-full;
+  }
+
+  .data-table th {
+    @apply text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-3 px-4 border-b border-border;
+  }
+
+  .data-table td {
+    @apply py-4 px-4 border-b border-border/50;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-accent/50;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  /* Button glow effect */
+  .btn-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .btn-glow::after {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.1), transparent 70%);
+  }
+
+  .btn-glow:hover::after {
+    @apply opacity-100;
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 text-center;
+  }
+
+  .empty-state-icon {
+    @apply w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+
+  /* Notification item */
+  .notification-item {
+    @apply p-4 rounded-lg border border-border bg-card/50 transition-all duration-200;
+  }
+
+  .notification-item:hover {
+    @apply bg-accent;
+  }
+
+  .notification-item.unread {
+    @apply border-l-2 border-l-primary;
+  }
+
+  .notification-item.error {
+    @apply border-l-destructive;
+  }
+}
+
+@layer utilities {
+  /* Animation utilities */
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
   }
 }
