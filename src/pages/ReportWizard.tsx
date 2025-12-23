@@ -42,6 +42,7 @@ import { useConnections } from "@/hooks/useConnections";
 import { useReports } from "@/hooks/useReports";
 import { useWhatsAppAccounts } from "@/hooks/useWhatsAppAccounts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useN8nWebhooks } from "@/hooks/useN8nWebhooks";
 
 const steps = [
   { id: 1, title: "Início", icon: Sparkles },
@@ -229,11 +230,33 @@ export default function ReportWizard() {
     }
   };
 
-  const handleSendTest = () => {
-    toast.info("Enviando relatório de teste...");
-    setTimeout(() => {
+  const { sendTestMessage } = useN8nWebhooks();
+
+  const handleSendTest = async () => {
+    const recipientNumber = formData.recipientType === "private" 
+      ? formData.recipientNumber 
+      : formData.recipientGroup;
+      
+    if (!recipientNumber) {
+      toast.error("Configure um destinatário primeiro");
+      return;
+    }
+
+    toast.loading("Enviando relatório de teste...", { id: "test-report" });
+    
+    try {
+      await sendTestMessage({
+        phoneNumber: recipientNumber,
+        message: renderPreview(),
+        isGroup: formData.recipientType === "group",
+      });
+      toast.dismiss("test-report");
       toast.success("Relatório de teste enviado!");
-    }, 2000);
+    } catch (error) {
+      toast.dismiss("test-report");
+      console.error("Error sending test:", error);
+      toast.error("Erro ao enviar teste");
+    }
   };
 
   const insertVariable = (tag: string) => {
