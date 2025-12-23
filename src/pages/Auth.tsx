@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '@/integrations/supabase';
@@ -9,11 +9,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { BarChart3, Loader2, Mail, Lock, User } from 'lucide-react';
+import { BarChart3, Loader2, Mail, Lock, User, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'Senha deve ter no mínimo 6 caracteres');
+
+// Valor bruto do env (pode ser undefined se não injetado no build)
+const rawEnvUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -21,14 +24,38 @@ export default function Auth() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
 
+  // Estado do teste de conexão
+  const [connectionTest, setConnectionTest] = useState<{
+    status: 'idle' | 'testing' | 'success' | 'error';
+    message?: string;
+  }>({ status: 'idle' });
+
   const supabaseTargetUrl = useMemo(() => {
     const u = (supabase as unknown as { supabaseUrl?: string }).supabaseUrl;
     return u ?? 'desconhecido';
   }, []);
 
   useEffect(() => {
-    // Diagnóstico rápido no console (sem dados sensíveis)
-    console.info('[Auth Debug] isSupabaseConfigured=', isSupabaseConfigured, 'supabaseUrl=', supabaseTargetUrl);
+    console.info('[Auth Debug] isSupabaseConfigured=', isSupabaseConfigured, 'supabaseUrl=', supabaseTargetUrl, 'rawEnv=', rawEnvUrl);
+  }, [supabaseTargetUrl]);
+
+  const testConnection = useCallback(async () => {
+    setConnectionTest({ status: 'testing' });
+    try {
+      // Tenta buscar a health do Supabase (endpoint público)
+      const res = await fetch(`${supabaseTargetUrl}/rest/v1/`, {
+        method: 'HEAD',
+        headers: { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '' },
+      });
+      if (res.ok || res.status === 200 || res.status === 404) {
+        // 404 é esperado para / sem tabela, mas significa que o servidor respondeu
+        setConnectionTest({ status: 'success', message: `Conexão OK (status ${res.status})` });
+      } else {
+        setConnectionTest({ status: 'error', message: `Erro HTTP ${res.status}` });
+      }
+    } catch (err) {
+      setConnectionTest({ status: 'error', message: err instanceof Error ? err.message : 'Erro desconhecido' });
+    }
   }, [supabaseTargetUrl]);
 
   // Login form state
@@ -127,22 +154,58 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Alert className="mb-4">
+        <Alert className="mb-4" variant={isSupabaseConfigured ? 'default' : 'destructive'}>
           <AlertTitle>Diagnóstico de conexão</AlertTitle>
           <AlertDescription>
-            <div className="space-y-1">
-              <div>
-                <span className="font-medium">Supabase configurado:</span>{' '}
-                {isSupabaseConfigured ? 'sim' : 'não'}
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+                <span className="font-medium">Configurado:</span>
+                <span>{isSupabaseConfigured ? '✅ sim' : '❌ não'}</span>
+
+                <span className="font-medium">Env bruto:</span>
+                <span className="break-all font-mono text-xs">
+                  {rawEnvUrl ?? <span className="text-destructive">undefined</span>}
+                </span>
+
+                <span className="font-medium">URL usada:</span>
+                <span className="break-all font-mono text-xs">{supabaseTargetUrl}</span>
               </div>
-              <div className="break-all">
-                <span className="font-medium">URL alvo:</span> {supabaseTargetUrl}
-              </div>
+
               {!isSupabaseConfigured && (
-                <div className="text-muted-foreground">
-                  Ação: clique em <span className="font-medium">Publish → Update</span> e recarregue.
-                </div>
+                <p className="text-muted-foreground">
+                  O env <code>VITE_SUPABASE_URL</code> não foi injetado no build. Vá em{' '}
+                  <strong>Lovable Settings → Secrets</strong>, confirme os valores e clique em{' '}
+                  <strong>Publish → Update</strong>.
+                </p>
               )}
+
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={testConnection}
+                  disabled={connectionTest.status === 'testing'}
+                >
+                  {connectionTest.status === 'testing' ? (
+                    <RefreshCw className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                  )}
+                  Testar Conexão
+                </Button>
+
+                {connectionTest.status === 'success' && (
+                  <span className="flex items-center gap-1 text-green-600">
+                    <CheckCircle2 className="h-4 w-4" /> {connectionTest.message}
+                  </span>
+                )}
+                {connectionTest.status === 'error' && (
+                  <span className="flex items-center gap-1 text-destructive">
+                    <XCircle className="h-4 w-4" /> {connectionTest.message}
+                  </span>
+                )}
+              </div>
             </div>
           </AlertDescription>
         </Alert>
