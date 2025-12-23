@@ -33,3 +33,12 @@ verify_jwt = false
 
 [functions.webhook-whatsapp]
 verify_jwt = false
+
+[functions.meta-oauth-callback]
+verify_jwt = false
+
+[functions.meta-oauth-url]
+verify_jwt = false
+
+[functions.meta-ad-accounts]
+verify_jwt = false
