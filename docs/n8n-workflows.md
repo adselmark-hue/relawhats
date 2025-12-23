@@ -1287,3 +1287,46 @@ Configure o webhook no Evolution:
 URL: https://n8n-n8n.5lgyrt.easypanel.host/webhook/whatsapp-status-callback
 Eventos: connection.update, qrcode.updated
 ```
+
+---
+
+## IDs dos Workflows n8n (Referência)
+
+Abaixo os IDs reais dos workflows importados:
+
+| Workflow | ID n8n |
+|----------|--------|
+| Webhook Status WhatsApp | `oLSZkrhoOklxWS1G` |
+| Coleta Métricas Google Ads | `vzWBpQcozGgTUz8O` |
+| Coleta Métricas Meta | `zJO43ci7n9uVrU52` |
+| Envio Relatórios WhatsApp | `UW35Y0pzaHs578jt` |
+| OAuth Google Ads | `zkS8bOHAV5PIX34P` |
+| OAuth Meta Ads (PLACEHOLDER) | `SIunHSZdfv7fD6k0` |
+| Renovação Token Google Ads | `WRb8j5qc31lEc6AR` |
+| Renovação Token Meta (PLACEHOLDER) | `IyrrmceZwGXMS8A5` |
+| Teste Envio WhatsApp | `taqDbxdk7hK8kNqA` |
+| Verificação de Alertas | `KzpWTpWq9qS88KZI` |
+
+**Instance ID:** `229ae87dff8de06d6b5dff0eaaad4ea7291435d7ac4c220b14a1c8e27ae37238`
+
+---
+
+## Resumo dos Workflows
+
+### Workflows Agendados (Schedule)
+- **Coleta Métricas Google Ads** - A cada hora
+- **Coleta Métricas Meta** - A cada hora
+- **Renovação Token Google Ads** - A cada 45 minutos
+- **Renovação Token Meta** - Diariamente às 3h (PLACEHOLDER)
+- **Verificação de Alertas** - A cada 30 minutos
+- **Envio Relatórios WhatsApp** - A cada 5 minutos
+
+### Webhooks
+- **Webhook Status WhatsApp** - POST `/whatsapp-status-callback`
+- **OAuth Google Ads** - GET `/google-oauth-callback`
+- **OAuth Meta Ads** - GET `/meta-oauth-callback` (PLACEHOLDER)
+- **Teste Envio WhatsApp** - POST `/whatsapp-test-send`
+
+### Pendências
+1. **OAuth Meta Ads** - Precisa implementar troca de token e busca de contas (requer META_APP_SECRET)
+2. **Renovação Token Meta** - Precisa implementar (requer META_APP_SECRET)
