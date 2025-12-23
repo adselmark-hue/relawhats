@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Check,
@@ -20,9 +20,12 @@ import { supabase } from "@/integrations/supabase";
 export default function Connections() {
   const { user, organizationId } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection } = useConnections();
+  const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection, refetch } = useConnections();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const popupRef = useRef<Window | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Handle OAuth callback messages
+  // Handle OAuth callback messages from popup or URL params
   useEffect(() => {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
@@ -30,11 +33,38 @@ export default function Connections() {
     if (success === 'meta') {
       toast.success('Meta Ads conectado com sucesso!');
       setSearchParams({});
+      refetch();
     } else if (error) {
       toast.error(`Erro na conexão: ${decodeURIComponent(error)}`);
       setSearchParams({});
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, refetch]);
+
+  // Listen for popup close and messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'META_OAUTH_SUCCESS') {
+        toast.success('Meta Ads conectado com sucesso!');
+        setIsConnecting(false);
+        refetch();
+      } else if (event.data?.type === 'META_OAUTH_ERROR') {
+        toast.error(`Erro na conexão: ${event.data.error}`);
+        setIsConnecting(false);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [refetch]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleConnect = async (platform: "meta" | "google") => {
     if (!user || !organizationId) {
@@ -44,27 +74,52 @@ export default function Connections() {
 
     if (platform === "meta") {
       try {
-        toast.loading('Gerando URL de autenticação...');
+        setIsConnecting(true);
+        toast.loading('Gerando URL de autenticação...', { id: 'oauth-loading' });
         
         const { data, error } = await supabase.functions.invoke('meta-oauth-url', {
           body: { userId: user.id, organizationId },
         });
 
-        toast.dismiss();
+        toast.dismiss('oauth-loading');
 
         if (error) {
           console.error('Error getting OAuth URL:', error);
           toast.error('Erro ao iniciar conexão');
+          setIsConnecting(false);
           return;
         }
 
         if (data?.url) {
-          window.location.href = data.url;
+          // Open OAuth in popup window (like Metrifiquei)
+          const width = 600;
+          const height = 700;
+          const left = window.screenX + (window.outerWidth - width) / 2;
+          const top = window.screenY + (window.outerHeight - height) / 2;
+
+          popupRef.current = window.open(
+            data.url,
+            'meta-oauth',
+            `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+          );
+
+          // Poll for popup close and check for success
+          pollIntervalRef.current = setInterval(async () => {
+            if (popupRef.current?.closed) {
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+              }
+              setIsConnecting(false);
+              // Refetch connections to check if it was successful
+              await refetch();
+            }
+          }, 500);
         }
       } catch (err) {
         console.error('Connection error:', err);
-        toast.dismiss();
+        toast.dismiss('oauth-loading');
         toast.error('Erro ao conectar com Meta');
+        setIsConnecting(false);
       }
     } else {
       toast.info('Google Ads em breve!');
@@ -76,14 +131,14 @@ export default function Connections() {
   };
 
   const handleSync = async (id: string) => {
-    toast.loading('Sincronizando contas...');
+    toast.loading('Sincronizando contas...', { id: 'sync-loading' });
     
     try {
       const { data, error } = await supabase.functions.invoke('meta-ad-accounts', {
         body: { connectionId: id },
       });
 
-      toast.dismiss();
+      toast.dismiss('sync-loading');
 
       if (error) {
         toast.error('Erro ao sincronizar contas');
@@ -91,8 +146,9 @@ export default function Connections() {
       }
 
       toast.success(`${data.accounts?.length || 0} contas sincronizadas!`);
+      refetch();
     } catch (err) {
-      toast.dismiss();
+      toast.dismiss('sync-loading');
       toast.error('Erro ao sincronizar');
     }
   };
@@ -212,9 +268,14 @@ export default function Connections() {
                 <Button
                   className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
                   onClick={() => handleConnect("meta")}
+                  disabled={isConnecting}
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  Conectar com Meta
+                  {isConnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4" />
+                  )}
+                  {isConnecting ? 'Conectando...' : 'Conectar com Meta'}
                 </Button>
               </div>
             )}

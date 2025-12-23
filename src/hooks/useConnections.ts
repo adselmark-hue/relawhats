@@ -86,6 +86,11 @@ export function useConnections() {
   const getAccountsByConnection = (connectionId: string) =>
     adAccounts?.filter((a) => a.connection_id === connectionId) ?? [];
 
+  const refetch = () => {
+    queryClient.invalidateQueries({ queryKey: ['connections', organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['ad_accounts', organizationId] });
+  };
+
   return {
     connections: connections ?? [],
     adAccounts: adAccounts ?? [],
@@ -95,5 +100,6 @@ export function useConnections() {
     deleteConnection,
     getConnectionByPlatform,
     getAccountsByConnection,
+    refetch,
   };
 }

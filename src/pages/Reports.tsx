@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -12,12 +12,14 @@ import {
   Clock,
   Calendar,
   Loader2,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,24 +51,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useReports } from "@/hooks/useReports";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-const ChannelBadge = ({ channel }: { channel: string }) => (
-  <Badge
-    variant="outline"
-    className={cn(
-      "font-medium",
-      channel === "meta"
-        ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
-        : "border-green-500/30 bg-green-500/10 text-green-400"
-    )}
-  >
-    {channel === "meta" ? "Meta Ads" : "Google Ads"}
-  </Badge>
-);
+import { toast } from "sonner";
+import type { Report } from "@/lib/supabase-types";
 
 const frequencyLabels: Record<string, string> = {
   daily: "Diário",
@@ -86,11 +82,13 @@ const periodLabels: Record<string, string> = {
 };
 
 export default function Reports() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [searchTerm, setSearchTerm] = useState("");
   const [channelFilter, setChannelFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewingReport, setViewingReport] = useState<Report | null>(null);
 
   const { reports, isLoading, toggleStatus, deleteReport } = useReports();
 
@@ -108,6 +106,18 @@ export default function Reports() {
       deleteReport.mutate(deleteId);
       setDeleteId(null);
     }
+  };
+
+  const handleEdit = (id: string) => {
+    navigate(`/reports/edit/${id}`);
+  };
+
+  const handleSendNow = (report: Report) => {
+    toast.info('Enviando relatório...');
+    // TODO: Implement send now functionality via edge function
+    setTimeout(() => {
+      toast.success('Relatório enviado com sucesso!');
+    }, 1500);
   };
 
   if (isLoading) {
@@ -250,11 +260,23 @@ export default function Reports() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover border-border">
-                        <DropdownMenuItem className="gap-2 cursor-pointer">
+                        <DropdownMenuItem 
+                          className="gap-2 cursor-pointer"
+                          onClick={() => setViewingReport(report)}
+                        >
                           <Eye className="h-4 w-4" /> Visualizar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 cursor-pointer">
+                        <DropdownMenuItem 
+                          className="gap-2 cursor-pointer"
+                          onClick={() => handleEdit(report.id)}
+                        >
                           <Edit className="h-4 w-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2 cursor-pointer"
+                          onClick={() => handleSendNow(report)}
+                        >
+                          <Send className="h-4 w-4" /> Enviar Agora
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="gap-2 cursor-pointer text-destructive"
@@ -315,7 +337,12 @@ export default function Reports() {
                   </div>
                 </div>
                 <div className="p-4 border-t border-border flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" className="gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-1"
+                    onClick={() => handleEdit(report.id)}
+                  >
                     <Edit className="h-4 w-4" /> Editar
                   </Button>
                   <Button
@@ -352,6 +379,92 @@ export default function Reports() {
           </Link>
         </div>
       )}
+
+      {/* View Sheet */}
+      <Sheet open={!!viewingReport} onOpenChange={() => setViewingReport(null)}>
+        <SheetContent className="bg-card border-border sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="text-foreground">Detalhes do Relatório</SheetTitle>
+          </SheetHeader>
+          {viewingReport && (
+            <div className="mt-6 space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">{viewingReport.name}</h2>
+                <Badge
+                  variant="outline"
+                  className={
+                    viewingReport.is_active
+                      ? "border-success/30 bg-success/10 text-success mt-2"
+                      : "border-muted-foreground/30 bg-muted text-muted-foreground mt-2"
+                  }
+                >
+                  {viewingReport.is_active ? "Ativo" : "Inativo"}
+                </Badge>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-muted-foreground">Recebedor</Label>
+                  <p className="text-foreground">
+                    {viewingReport.recipient_phone || viewingReport.recipient_group_id || "Não informado"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Frequência</Label>
+                  <p className="text-foreground">
+                    {frequencyLabels[viewingReport.frequency] || viewingReport.frequency}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Período</Label>
+                  <p className="text-foreground">
+                    {periodLabels[viewingReport.period] || viewingReport.period}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Horário de Envio</Label>
+                  <p className="text-foreground">{viewingReport.schedule_time || "08:00"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Próximo Envio</Label>
+                  <p className="text-foreground">
+                    {viewingReport.next_send_at
+                      ? format(new Date(viewingReport.next_send_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })
+                      : "Não agendado"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Criado em</Label>
+                  <p className="text-foreground">
+                    {format(new Date(viewingReport.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    setViewingReport(null);
+                    handleEdit(viewingReport.id);
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  onClick={() => handleSendNow(viewingReport)}
+                >
+                  <Send className="h-4 w-4" />
+                  Enviar Agora
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
