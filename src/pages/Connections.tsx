@@ -17,8 +17,13 @@ import { useConnections } from "@/hooks/useConnections";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase";
 
+// Debug helper
+const logDebug = (msg: string, data?: object) => {
+  console.log(`[Connections] ${msg}`, data || '');
+};
+
 export default function Connections() {
-  const { user, organizationId, isLoading: authLoading } = useAuth();
+  const { user, organizationId, isLoading: authLoading, refetchOrganization } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isConnecting, setIsConnecting] = useState(false);
   const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection, refetch } = useConnections();
@@ -47,12 +52,11 @@ export default function Connections() {
     setIsConnecting(true);
 
     try {
-      // Fallback: se user ou organizationId não estão no contexto, buscar diretamente
+      // Primeiro: pegar userId
       let userId = user?.id;
-      let orgId = organizationId;
 
       if (!userId) {
-        console.log('[Connections] User não encontrado no contexto, buscando via getUser...');
+        logDebug('User não encontrado no contexto, buscando via getUser...');
         const { data } = await supabase.auth.getUser();
         userId = data.user?.id;
       }
@@ -63,22 +67,35 @@ export default function Connections() {
         return;
       }
 
+      // Segundo: pegar orgId do contexto ou refetch
+      let orgId = organizationId;
+
       if (!orgId) {
-        console.log('[Connections] OrgId não encontrado, buscando via query...');
-        const { data: orgUserData } = await supabase
+        logDebug('OrgId não encontrado no contexto, tentando refetch...');
+        orgId = await refetchOrganization();
+      }
+
+      // Terceiro: se ainda não tem, buscar diretamente
+      if (!orgId) {
+        logDebug('OrgId ainda não encontrado, buscando via query direta...');
+        const { data: orgUserData, error: orgError } = await supabase
           .from('organization_users')
           .select('organization_id')
           .eq('user_id', userId)
           .maybeSingle();
         
+        logDebug('Debug Org Fetch:', { userId, orgData: orgUserData, error: orgError });
         orgId = orgUserData?.organization_id;
       }
 
       if (!orgId) {
-        toast.error('Organização não encontrada. Entre em contato com o suporte.');
+        logDebug('Nenhuma organização encontrada para o usuário', { userId });
+        toast.error('Organização não encontrada. Verifique se você está vinculado a uma organização.');
         setIsConnecting(false);
         return;
       }
+
+      logDebug('Dados prontos para OAuth', { userId, orgId });
 
       if (platform === "meta") {
         const META_APP_ID = "862504603144230";
@@ -88,7 +105,7 @@ export default function Connections() {
         
         const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}&scope=${SCOPE}&response_type=code`;
         
-        console.log('[Connections] Redirecionando para OAuth Meta:', oauthUrl);
+        logDebug('Redirecionando para OAuth Meta:', { oauthUrl });
         window.location.href = oauthUrl;
       } else {
         toast.info('Google Ads em breve!');

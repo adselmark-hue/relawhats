@@ -15,6 +15,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
   signInWithFacebook: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refetchOrganization: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,52 +32,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch user profile and organization data
   const fetchUserData = async (userId: string) => {
     try {
+      console.log('Debug Auth: Fetching user data for:', userId);
+
       // Fetch profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
+      console.log('Debug Profile Fetch:', { userId, profileData, profileError });
 
       if (profileData) {
         setProfile(profileData);
       }
 
       // Fetch organization membership
-      const { data: orgUserData } = await supabase
+      const { data: orgUserData, error: orgUserError } = await supabase
         .from('organization_users')
         .select('organization_id')
         .eq('user_id', userId)
-        .maybeSingle() as { data: { organization_id: string } | null; error: unknown };
+        .maybeSingle();
+
+      console.log('Debug Org User Fetch:', { userId, orgUserData, orgUserError });
 
       if (orgUserData?.organization_id) {
         setOrganizationId(orgUserData.organization_id);
 
         // Fetch organization details
-        const { data: orgData } = await supabase
+        const { data: orgData, error: orgError } = await supabase
           .from('organizations')
           .select('*')
           .eq('id', orgUserData.organization_id)
           .maybeSingle();
 
+        console.log('Debug Org Fetch:', { orgId: orgUserData.organization_id, orgData, orgError });
+
         if (orgData) {
           setOrganization(orgData as Organization);
         }
+      } else {
+        console.warn('Debug: No organization_users entry found for user:', userId);
+        // Clear org state if no membership found
+        setOrganizationId(null);
+        setOrganization(null);
       }
 
       // Fetch user role
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .maybeSingle() as { data: { role: AppRole } | null; error: unknown };
+        .maybeSingle();
+
+      console.log('Debug Role Fetch:', { userId, roleData, roleError });
 
       if (roleData?.role) {
-        setRole(roleData.role);
+        setRole(roleData.role as AppRole);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
+  };
+
+  // Function to refetch organization data
+  const refetchOrganization = async () => {
+    if (!user?.id) return null;
+    
+    console.log('Debug: Refetching organization for user:', user.id);
+    
+    const { data: orgUserData, error } = await supabase
+      .from('organization_users')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    console.log('Debug Org Refetch:', { userId: user.id, orgUserData, error });
+
+    if (orgUserData?.organization_id) {
+      setOrganizationId(orgUserData.organization_id);
+      
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', orgUserData.organization_id)
+        .maybeSingle();
+
+      if (orgData) {
+        setOrganization(orgData as Organization);
+      }
+      return orgUserData.organization_id;
+    }
+    return null;
   };
 
   useEffect(() => {
@@ -183,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signInWithFacebook,
         signOut,
+        refetchOrganization,
       }}
     >
       {children}
