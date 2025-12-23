@@ -1,6 +1,7 @@
 // Hook para chamar webhooks do n8n
 import { useAuth } from '@/contexts/AuthContext';
 
+// n8n base URL from CONFIG workflow
 const N8N_BASE_URL = 'https://n8n-n8n.5lgyrt.easypanel.host';
 
 interface WebhookOptions {
@@ -17,15 +18,10 @@ export function useN8nWebhooks() {
   ) => {
     const url = `${N8N_BASE_URL}/webhook/${path}`;
     
-    // Get webhook secret from env or use a placeholder
-    // In production, this should come from a secure source
-    const webhookSecret = import.meta.env.VITE_WEBHOOK_SECRET || '';
-    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-webhook-secret': webhookSecret,
         ...options?.headers,
       },
       body: JSON.stringify({
