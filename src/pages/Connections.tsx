@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Check,
@@ -21,11 +21,8 @@ export default function Connections() {
   const { user, organizationId } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection, refetch } = useConnections();
-  const [isConnecting, setIsConnecting] = useState(false);
-  const popupRef = useRef<Window | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Handle OAuth callback messages from popup or URL params
+  // Handle OAuth callback messages from URL params (after redirect from n8n)
   useEffect(() => {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
@@ -40,32 +37,6 @@ export default function Connections() {
     }
   }, [searchParams, setSearchParams, refetch]);
 
-  // Listen for popup close and messages
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'META_OAUTH_SUCCESS') {
-        toast.success('Meta Ads conectado com sucesso!');
-        setIsConnecting(false);
-        refetch();
-      } else if (event.data?.type === 'META_OAUTH_ERROR') {
-        toast.error(`Erro na conexão: ${event.data.error}`);
-        setIsConnecting(false);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [refetch]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, []);
-
   const handleConnect = async (platform: "meta" | "google") => {
     if (!user || !organizationId) {
       toast.error('Você precisa estar logado');
@@ -73,54 +44,16 @@ export default function Connections() {
     }
 
     if (platform === "meta") {
-      try {
-        setIsConnecting(true);
-        toast.loading('Gerando URL de autenticação...', { id: 'oauth-loading' });
-        
-        const { data, error } = await supabase.functions.invoke('meta-oauth-url', {
-          body: { userId: user.id, organizationId },
-        });
-
-        toast.dismiss('oauth-loading');
-
-        if (error) {
-          console.error('Error getting OAuth URL:', error);
-          toast.error('Erro ao iniciar conexão');
-          setIsConnecting(false);
-          return;
-        }
-
-        if (data?.url) {
-          // Open OAuth in popup window (like Metrifiquei)
-          const width = 600;
-          const height = 700;
-          const left = window.screenX + (window.outerWidth - width) / 2;
-          const top = window.screenY + (window.outerHeight - height) / 2;
-
-          popupRef.current = window.open(
-            data.url,
-            'meta-oauth',
-            `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
-          );
-
-          // Poll for popup close and check for success
-          pollIntervalRef.current = setInterval(async () => {
-            if (popupRef.current?.closed) {
-              if (pollIntervalRef.current) {
-                clearInterval(pollIntervalRef.current);
-              }
-              setIsConnecting(false);
-              // Refetch connections to check if it was successful
-              await refetch();
-            }
-          }, 500);
-        }
-      } catch (err) {
-        console.error('Connection error:', err);
-        toast.dismiss('oauth-loading');
-        toast.error('Erro ao conectar com Meta');
-        setIsConnecting(false);
-      }
+      // Redirect directly to Facebook OAuth via n8n callback
+      const META_APP_ID = "862504603144230";
+      const REDIRECT_URI = "https://n8n-n8n.5lgyrt.easypanel.host/webhook/meta-oauth-callback";
+      const STATE = `${user.id}_${organizationId}`;
+      const SCOPE = "ads_read,business_management";
+      
+      const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}&scope=${SCOPE}&response_type=code`;
+      
+      // Redirect the browser to Facebook OAuth
+      window.location.href = oauthUrl;
     } else {
       toast.info('Google Ads em breve!');
     }
@@ -268,14 +201,9 @@ export default function Connections() {
                 <Button
                   className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
                   onClick={() => handleConnect("meta")}
-                  disabled={isConnecting}
                 >
-                  {isConnecting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4" />
-                  )}
-                  {isConnecting ? 'Conectando...' : 'Conectar com Meta'}
+                  <ExternalLink className="h-4 w-4" />
+                  Conectar com Meta
                 </Button>
               </div>
             )}
