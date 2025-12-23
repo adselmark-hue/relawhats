@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Check,
@@ -18,8 +18,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase";
 
 export default function Connections() {
-  const { user, organizationId } = useAuth();
+  const { user, organizationId, isLoading: authLoading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isConnecting, setIsConnecting] = useState(false);
   const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection, refetch } = useConnections();
 
   // Handle OAuth callback messages from URL params (after redirect from n8n)
@@ -38,24 +39,65 @@ export default function Connections() {
   }, [searchParams, setSearchParams, refetch]);
 
   const handleConnect = async (platform: "meta" | "google") => {
-    if (!user || !organizationId) {
-      toast.error('Você precisa estar logado');
+    if (authLoading) {
+      toast.info('Aguarde, verificando sessão...');
       return;
     }
 
-    if (platform === "meta") {
-      // Redirect directly to Facebook OAuth via n8n callback
-      const META_APP_ID = "862504603144230";
-      const REDIRECT_URI = "https://n8n-n8n.5lgyrt.easypanel.host/webhook/meta-oauth-callback";
-      const STATE = `${user.id}_${organizationId}`;
-      const SCOPE = "ads_read,business_management";
-      
-      const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}&scope=${SCOPE}&response_type=code`;
-      
-      // Redirect the browser to Facebook OAuth
-      window.location.href = oauthUrl;
-    } else {
-      toast.info('Google Ads em breve!');
+    setIsConnecting(true);
+
+    try {
+      // Fallback: se user ou organizationId não estão no contexto, buscar diretamente
+      let userId = user?.id;
+      let orgId = organizationId;
+
+      if (!userId) {
+        console.log('[Connections] User não encontrado no contexto, buscando via getUser...');
+        const { data } = await supabase.auth.getUser();
+        userId = data.user?.id;
+      }
+
+      if (!userId) {
+        toast.error('Você precisa estar logado');
+        setIsConnecting(false);
+        return;
+      }
+
+      if (!orgId) {
+        console.log('[Connections] OrgId não encontrado, buscando via query...');
+        const { data: orgUserData } = await supabase
+          .from('organization_users')
+          .select('organization_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        orgId = orgUserData?.organization_id;
+      }
+
+      if (!orgId) {
+        toast.error('Organização não encontrada. Entre em contato com o suporte.');
+        setIsConnecting(false);
+        return;
+      }
+
+      if (platform === "meta") {
+        const META_APP_ID = "862504603144230";
+        const REDIRECT_URI = "https://n8n-n8n.5lgyrt.easypanel.host/webhook/meta-oauth-callback";
+        const STATE = `${userId}_${orgId}`;
+        const SCOPE = "ads_read,business_management";
+        
+        const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}&scope=${SCOPE}&response_type=code`;
+        
+        console.log('[Connections] Redirecionando para OAuth Meta:', oauthUrl);
+        window.location.href = oauthUrl;
+      } else {
+        toast.info('Google Ads em breve!');
+        setIsConnecting(false);
+      }
+    } catch (error) {
+      console.error('[Connections] Erro ao conectar:', error);
+      toast.error('Erro ao iniciar conexão');
+      setIsConnecting(false);
     }
   };
 
@@ -201,9 +243,14 @@ export default function Connections() {
                 <Button
                   className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
                   onClick={() => handleConnect("meta")}
+                  disabled={isConnecting || authLoading}
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  Conectar com Meta
+                  {isConnecting || authLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4" />
+                  )}
+                  {authLoading ? 'Verificando...' : isConnecting ? 'Conectando...' : 'Conectar com Meta'}
                 </Button>
               </div>
             )}
