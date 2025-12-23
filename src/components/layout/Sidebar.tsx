@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   FileText,
@@ -50,6 +50,20 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, profile } = useAuth();
+
+  const handleLogout = async () => {
+    console.log('[Sidebar] Logout iniciado');
+    try {
+      await signOut();
+      localStorage.clear();
+      console.log('[Sidebar] Logout concluído, redirecionando...');
+      navigate('/auth', { replace: true });
+    } catch (error) {
+      console.error('[Sidebar] Erro no logout:', error);
+    }
+  };
 
   const NavItem = ({
     icon: Icon,
@@ -150,16 +164,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <Avatar className="h-8 w-8">
             <AvatarImage src="" />
             <AvatarFallback className="bg-primary/20 text-primary text-sm">
-              EL
+              {profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">
-                Eliezer
+                {profile?.full_name || 'Usuário'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                Admin
+                {profile?.email || ''}
               </p>
             </div>
           )}
@@ -169,7 +183,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {collapsed ? (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <button className="nav-item w-full">
+              <button className="nav-item w-full" onClick={handleLogout}>
                 <LogOut className="h-5 w-5 text-muted-foreground" />
               </button>
             </TooltipTrigger>
@@ -178,7 +192,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </TooltipContent>
           </Tooltip>
         ) : (
-          <button className="nav-item w-full">
+          <button className="nav-item w-full" onClick={handleLogout}>
             <LogOut className="h-5 w-5 text-muted-foreground" />
             <span>Sair</span>
           </button>
