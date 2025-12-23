@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -80,15 +80,28 @@ const periodMap: Record<string, string> = {
   thisMonth: "this_month",
 };
 
+const reversePeriodMap: Record<string, string> = {
+  today: "today",
+  yesterday: "yesterday",
+  last_7_days: "last7",
+  last_30_days: "last30",
+  this_month: "thisMonth",
+  last_month: "thisMonth",
+  custom: "today",
+};
+
 export default function ReportWizard() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditing = !!id;
   const { organizationId } = useAuth();
   const { connections, adAccounts, getConnectionByPlatform, getAccountsByConnection } = useConnections();
-  const { createReport } = useReports();
+  const { reports, createReport, updateReport } = useReports();
   const { whatsappAccounts } = useWhatsAppAccounts();
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(isEditing);
   const [formData, setFormData] = useState({
     name: "",
     channel: "" as "" | "meta" | "google",
@@ -104,6 +117,38 @@ export default function ReportWizard() {
     scheduleTime: "08:00",
     scheduleDays: ["mon", "tue", "wed", "thu", "fri"],
   });
+
+  // Load existing report data if editing
+  useEffect(() => {
+    if (isEditing && reports.length > 0) {
+      const report = reports.find(r => r.id === id);
+      if (report) {
+        const scheduleDaysIds = (report.schedule_days || []).map(num => 
+          weekDays.find(w => w.num === num)?.id || "mon"
+        );
+        
+        setFormData({
+          name: report.name,
+          channel: "",
+          connection: "",
+          adAccounts: [],
+          messageTemplate: formData.messageTemplate, // Keep default template
+          whatsappAccount: report.whatsapp_account_id || "",
+          recipientType: report.recipient_group_id ? "group" : "private",
+          recipientNumber: report.recipient_phone || "",
+          recipientGroup: report.recipient_group_id || "",
+          period: reversePeriodMap[report.period] || "yesterday",
+          frequency: report.frequency,
+          scheduleTime: report.schedule_time || "08:00",
+          scheduleDays: scheduleDaysIds.length > 0 ? scheduleDaysIds : ["mon", "tue", "wed", "thu", "fri"],
+        });
+        setIsLoading(false);
+      } else {
+        toast.error("Relatório não encontrado");
+        navigate("/reports");
+      }
+    }
+  }, [isEditing, reports, id, navigate]);
 
   // Get available ad accounts based on selected channel
   const availableAccounts = formData.channel 
@@ -148,8 +193,7 @@ export default function ReportWizard() {
         day => weekDays.find(w => w.id === day)?.num ?? 0
       );
 
-      await createReport.mutateAsync({
-        organization_id: organizationId,
+      const reportData = {
         name: formData.name,
         frequency: (formData.frequency || "daily") as "daily" | "weekly" | "monthly" | "custom",
         schedule_time: formData.scheduleTime,
@@ -160,13 +204,26 @@ export default function ReportWizard() {
         recipient_group_id: formData.recipientType === "group" ? formData.recipientGroup : null,
         is_active: true,
         next_send_at: nextSend.toISOString(),
-      });
+      };
 
-      toast.success("Relatório criado com sucesso!");
+      if (isEditing && id) {
+        await updateReport.mutateAsync({
+          id,
+          ...reportData,
+        });
+        toast.success("Relatório atualizado com sucesso!");
+      } else {
+        await createReport.mutateAsync({
+          organization_id: organizationId,
+          ...reportData,
+        });
+        toast.success("Relatório criado com sucesso!");
+      }
+      
       navigate("/reports");
     } catch (error) {
-      console.error("Error creating report:", error);
-      toast.error("Erro ao criar relatório");
+      console.error("Error saving report:", error);
+      toast.error(isEditing ? "Erro ao atualizar relatório" : "Erro ao criar relatório");
     } finally {
       setIsSaving(false);
     }
@@ -683,13 +740,21 @@ export default function ReportWizard() {
                 ) : (
                   <Check className="h-4 w-4" />
                 )}
-                Salvar e Ativar
+                {isEditing ? "Salvar Alterações" : "Salvar e Ativar"}
               </Button>
             </div>
           </div>
         );
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
@@ -705,10 +770,10 @@ export default function ReportWizard() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Criar Relatório
+            {isEditing ? "Editar Relatório" : "Criar Relatório"}
           </h1>
           <p className="text-muted-foreground">
-            Configure seu relatório automatizado
+            {isEditing ? "Atualize as configurações do relatório" : "Configure seu relatório automatizado"}
           </p>
         </div>
       </div>
