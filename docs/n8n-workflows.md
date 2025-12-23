@@ -2,12 +2,16 @@
 
 Todos os workflows prontos para importar. Consulte `docs/n8n-setup-guide.md` para instruções.
 
-## Variáveis
+## ⚠️ IMPORTANTE: Atualize o Workflow Config!
+
+O Supabase do projeto foi atualizado. Use os dados abaixo no workflow Config:
+
+## Variáveis Atualizadas
 
 | Variável | Valor |
 |----------|-------|
-| SUPABASE_URL | https://hbmweepukkolpnqjahkw.supabase.co |
-| SUPABASE_ANON_KEY | eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... |
+| SUPABASE_URL | https://otuyyxippyyieeleviid.supabase.co |
+| SUPABASE_ANON_KEY | eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90dXl5eGlwcHl5aWVlbGV2aWlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMTM5MTUsImV4cCI6MjA4MTY4OTkxNX0.xKYOpyGP5S15uvbWxfEXYXeQRrsnVii_TuoPRO3aI6g |
 | EVOLUTION_API_URL | https://api.gzappw.com |
 | EVOLUTION_INSTANCE_NAME | gzappw |
 | META_APP_ID | 1350562626022414 |
