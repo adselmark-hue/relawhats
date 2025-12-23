@@ -20,8 +20,9 @@ const rawEnvUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, isLoading, signIn, signUp } = useAuth();
+  const { user, isLoading, signIn, signUp, signInWithFacebook } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFacebookLoading, setIsFacebookLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
 
   // Estado do teste de conexão
@@ -107,6 +108,22 @@ export default function Auth() {
       toast.success('Login realizado com sucesso!');
       navigate('/');
     }
+  };
+
+  const handleFacebookLogin = async () => {
+    if (!isSupabaseConfigured) {
+      toast.error('Backend não configurado.');
+      return;
+    }
+
+    setIsFacebookLoading(true);
+    const { error } = await signInWithFacebook();
+    
+    if (error) {
+      toast.error(error.message || 'Erro ao conectar com Facebook');
+      setIsFacebookLoading(false);
+    }
+    // Não precisa setar false no sucesso pois haverá redirect
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -273,6 +290,32 @@ export default function Auth() {
                     ) : (
                       'Entrar'
                     )}
+                  </Button>
+
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">ou continue com</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handleFacebookLogin}
+                    disabled={isFacebookLoading}
+                  >
+                    {isFacebookLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.92 3.78-3.92 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z" />
+                      </svg>
+                    )}
+                    Entrar com Facebook
                   </Button>
                 </form>
               </TabsContent>
