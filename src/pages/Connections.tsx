@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Check,
   X,
@@ -12,24 +14,87 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useConnections } from "@/hooks/useConnections";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase";
 
 export default function Connections() {
+  const { user, organizationId } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection } = useConnections();
 
-  const handleConnect = (platform: "meta" | "google") => {
-    toast.info(`Iniciando conexão com ${platform === "meta" ? "Meta Ads" : "Google Ads"}...`);
-    // OAuth flow should be handled via Edge Functions
+  // Handle OAuth callback messages
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+
+    if (success === 'meta') {
+      toast.success('Meta Ads conectado com sucesso!');
+      setSearchParams({});
+    } else if (error) {
+      toast.error(`Erro na conexão: ${decodeURIComponent(error)}`);
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+
+  const handleConnect = async (platform: "meta" | "google") => {
+    if (!user || !organizationId) {
+      toast.error('Você precisa estar logado');
+      return;
+    }
+
+    if (platform === "meta") {
+      try {
+        toast.loading('Gerando URL de autenticação...');
+        
+        const { data, error } = await supabase.functions.invoke('meta-oauth-url', {
+          body: { userId: user.id, organizationId },
+        });
+
+        toast.dismiss();
+
+        if (error) {
+          console.error('Error getting OAuth URL:', error);
+          toast.error('Erro ao iniciar conexão');
+          return;
+        }
+
+        if (data?.url) {
+          window.location.href = data.url;
+        }
+      } catch (err) {
+        console.error('Connection error:', err);
+        toast.dismiss();
+        toast.error('Erro ao conectar com Meta');
+      }
+    } else {
+      toast.info('Google Ads em breve!');
+    }
   };
 
   const handleDisconnect = (id: string) => {
     deleteConnection.mutate(id);
   };
 
-  const handleSync = (id: string) => {
-    toast.info("Sincronizando contas...");
-    setTimeout(() => {
-      toast.success("Contas sincronizadas!");
-    }, 2000);
+  const handleSync = async (id: string) => {
+    toast.loading('Sincronizando contas...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('meta-ad-accounts', {
+        body: { connectionId: id },
+      });
+
+      toast.dismiss();
+
+      if (error) {
+        toast.error('Erro ao sincronizar contas');
+        return;
+      }
+
+      toast.success(`${data.accounts?.length || 0} contas sincronizadas!`);
+    } catch (err) {
+      toast.dismiss();
+      toast.error('Erro ao sincronizar');
+    }
   };
 
   const metaConnection = getConnectionByPlatform("meta");
