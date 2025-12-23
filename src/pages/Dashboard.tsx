@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Send, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, Send, Activity, Loader2 } from "lucide-react";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -12,16 +12,10 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-
-const chartData = [
-  { name: "Seg", meta: 12, google: 8 },
-  { name: "Ter", meta: 18, google: 12 },
-  { name: "Qua", meta: 15, google: 10 },
-  { name: "Qui", meta: 22, google: 16 },
-  { name: "Sex", meta: 28, google: 20 },
-  { name: "Sáb", meta: 14, google: 8 },
-  { name: "Dom", meta: 10, google: 6 },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { useReports } from "@/hooks/useReports";
+import { useClients } from "@/hooks/useClients";
+import { useAlerts } from "@/hooks/useAlerts";
 
 interface MetricCardProps {
   title: string;
@@ -94,13 +88,44 @@ function MetricCard({
 }
 
 export default function Dashboard() {
+  const { profile, isLoading: authLoading } = useAuth();
+  const { reports, isLoading: reportsLoading } = useReports();
+  const { clients, isLoading: clientsLoading } = useClients();
+  const { alerts, isLoading: alertsLoading } = useAlerts();
+
+  const isLoading = authLoading || reportsLoading || clientsLoading || alertsLoading;
+
+  const activeReports = reports.filter(r => r.is_active);
+  const activeAlerts = alerts.filter(a => a.is_active);
+
+  // Generate chart data based on reports (placeholder for real metrics)
+  const chartData = [
+    { name: "Seg", meta: 0, google: 0 },
+    { name: "Ter", meta: 0, google: 0 },
+    { name: "Qua", meta: 0, google: 0 },
+    { name: "Qui", meta: 0, google: 0 },
+    { name: "Sex", meta: 0, google: 0 },
+    { name: "Sáb", meta: 0, google: 0 },
+    { name: "Dom", meta: 0, google: 0 },
+  ];
+
+  const firstName = profile?.full_name?.split(' ')[0] || 'Usuário';
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Seja bem-vindo(a), <span className="text-gradient">Eliezer</span>!
+            Seja bem-vindo(a), <span className="text-gradient">{firstName}</span>!
           </h1>
           <p className="text-muted-foreground mt-1">
             Acompanhe suas métricas e relatórios em tempo real.
@@ -112,32 +137,28 @@ export default function Dashboard() {
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Investimento Reportado"
-          value="R$ 45.230,00"
-          change="+12.5%"
-          trend="up"
+          title="Total de Clientes"
+          value={clients.length.toString()}
           icon={<DollarSign className="h-5 w-5" />}
           color="blue"
         />
         <MetricCard
-          title="Investimento Médio/Relatório"
-          value="R$ 1.890,00"
-          change="+5.2%"
-          trend="up"
+          title="Relatórios Ativos"
+          value={activeReports.length.toString()}
           icon={<BarChart3 className="h-5 w-5" />}
           color="green"
         />
         <MetricCard
-          title="Relatórios Enviados"
-          value="24"
-          progress={80}
-          progressLabel="80% da meta mensal"
+          title="Total de Relatórios"
+          value={reports.length.toString()}
+          progress={reports.length > 0 ? Math.round((activeReports.length / reports.length) * 100) : 0}
+          progressLabel="Ativos"
           icon={<Send className="h-5 w-5" />}
           color="purple"
         />
         <MetricCard
-          title="Relatórios Ativos"
-          value="8"
+          title="Alertas Ativos"
+          value={activeAlerts.length.toString()}
           icon={<Activity className="h-5 w-5" />}
           color="orange"
         />
