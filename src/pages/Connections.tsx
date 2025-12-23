@@ -23,9 +23,8 @@ const logDebug = (msg: string, data?: object) => {
 };
 
 export default function Connections() {
-  const { user, organizationId, isLoading: authLoading, refetchOrganization } = useAuth();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isConnecting, setIsConnecting] = useState(false);
   const { connections, isLoading, deleteConnection, getConnectionByPlatform, getAccountsByConnection, refetch } = useConnections();
 
   // Handle OAuth callback messages from URL params (after redirect from n8n)
@@ -44,77 +43,33 @@ export default function Connections() {
   }, [searchParams, setSearchParams, refetch]);
 
   const handleConnect = async (platform: "meta" | "google") => {
-    if (authLoading) {
-      toast.info('Aguarde, verificando sessão...');
+    // Única verificação: usuário logado
+    let userId = user?.id;
+
+    if (!userId) {
+      // Fallback: buscar direto do Supabase
+      const { data } = await supabase.auth.getUser();
+      userId = data.user?.id;
+    }
+
+    if (!userId) {
+      toast.error('Faça login primeiro');
       return;
     }
 
-    setIsConnecting(true);
-
-    try {
-      // Primeiro: pegar userId
-      let userId = user?.id;
-
-      if (!userId) {
-        logDebug('User não encontrado no contexto, buscando via getUser...');
-        const { data } = await supabase.auth.getUser();
-        userId = data.user?.id;
-      }
-
-      if (!userId) {
-        toast.error('Você precisa estar logado');
-        setIsConnecting(false);
-        return;
-      }
-
-      // Segundo: pegar orgId do contexto ou refetch
-      let orgId = organizationId;
-
-      if (!orgId) {
-        logDebug('OrgId não encontrado no contexto, tentando refetch...');
-        orgId = await refetchOrganization();
-      }
-
-      // Terceiro: se ainda não tem, buscar diretamente
-      if (!orgId) {
-        logDebug('OrgId ainda não encontrado, buscando via query direta...');
-        const { data: orgUserData, error: orgError } = await supabase
-          .from('organization_users')
-          .select('organization_id')
-          .eq('user_id', userId)
-          .maybeSingle();
-        
-        logDebug('Debug Org Fetch:', { userId, orgData: orgUserData, error: orgError });
-        orgId = orgUserData?.organization_id;
-      }
-
-      if (!orgId) {
-        logDebug('Nenhuma organização encontrada para o usuário', { userId });
-        toast.error('Organização não encontrada. Verifique se você está vinculado a uma organização.');
-        setIsConnecting(false);
-        return;
-      }
-
-      logDebug('Dados prontos para OAuth', { userId, orgId });
-
-      if (platform === "meta") {
-        const META_APP_ID = "862504603144230";
-        const REDIRECT_URI = "https://n8n-n8n.5lgyrt.easypanel.host/webhook/meta-oauth-callback";
-        const STATE = `${userId}_${orgId}`;
-        const SCOPE = "ads_read,business_management";
-        
-        const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}&scope=${SCOPE}&response_type=code`;
-        
-        logDebug('Redirecionando para OAuth Meta:', { oauthUrl });
-        window.location.href = oauthUrl;
-      } else {
-        toast.info('Google Ads em breve!');
-        setIsConnecting(false);
-      }
-    } catch (error) {
-      console.error('[Connections] Erro ao conectar:', error);
-      toast.error('Erro ao iniciar conexão');
-      setIsConnecting(false);
+    if (platform === "meta") {
+      const META_APP_ID = "862504603144230";
+      const REDIRECT_URI = "https://n8n-n8n.5lgyrt.easypanel.host/webhook/meta-oauth-callback";
+      // O n8n vai se encarregar de achar a organização pelo ID do usuário
+      const STATE = userId;
+      const SCOPE = "ads_read,business_management";
+      
+      const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}&scope=${SCOPE}&response_type=code`;
+      
+      logDebug('Redirecionando para OAuth Meta:', { userId, oauthUrl });
+      window.location.href = oauthUrl;
+    } else {
+      toast.info('Google Ads em breve!');
     }
   };
 
@@ -260,14 +215,9 @@ export default function Connections() {
                 <Button
                   className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
                   onClick={() => handleConnect("meta")}
-                  disabled={isConnecting || authLoading}
                 >
-                  {isConnecting || authLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4" />
-                  )}
-                  {authLoading ? 'Verificando...' : isConnecting ? 'Conectando...' : 'Conectar com Meta'}
+                  <ExternalLink className="h-4 w-4" />
+                  Conectar com Meta
                 </Button>
               </div>
             )}
