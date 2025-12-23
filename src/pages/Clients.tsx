@@ -3,12 +3,12 @@ import {
   Plus,
   Search,
   Users,
-  DollarSign,
   MoreVertical,
   Edit,
   Trash2,
   Eye,
   Loader2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,15 +38,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useClients } from "@/hooks/useClients";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Client } from "@/lib/supabase-types";
 
 export default function Clients() {
   const { organizationId } = useAuth();
-  const { clients, isLoading, createClient, deleteClient } = useClients();
+  const { clients, isLoading, createClient, updateClient, deleteClient } = useClients();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [newClient, setNewClient] = useState({
     name: "",
     email: "",
@@ -59,13 +68,6 @@ export default function Clients() {
       (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
-
   const handleCreate = () => {
     if (!organizationId || !newClient.name) return;
 
@@ -77,6 +79,19 @@ export default function Clients() {
     });
     setIsDialogOpen(false);
     setNewClient({ name: "", email: "", phone: "" });
+  };
+
+  const handleEdit = () => {
+    if (!editingClient) return;
+
+    updateClient.mutate({
+      id: editingClient.id,
+      name: editingClient.name,
+      email: editingClient.email,
+      phone: editingClient.phone,
+      is_active: editingClient.is_active,
+    });
+    setEditingClient(null);
   };
 
   const handleDelete = () => {
@@ -217,10 +232,16 @@ export default function Clients() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-popover border-border">
-                      <DropdownMenuItem className="gap-2 cursor-pointer">
+                      <DropdownMenuItem 
+                        className="gap-2 cursor-pointer"
+                        onClick={() => setViewingClient(client)}
+                      >
                         <Eye className="h-4 w-4" /> Visualizar
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2 cursor-pointer">
+                      <DropdownMenuItem 
+                        className="gap-2 cursor-pointer"
+                        onClick={() => setEditingClient(client)}
+                      >
                         <Edit className="h-4 w-4" /> Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -273,6 +294,165 @@ export default function Clients() {
           </Button>
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingClient} onOpenChange={() => setEditingClient(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Editar Cliente</DialogTitle>
+          </DialogHeader>
+          {editingClient && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input
+                  placeholder="Nome do cliente ou empresa"
+                  value={editingClient.name}
+                  onChange={(e) =>
+                    setEditingClient({ ...editingClient, name: e.target.value })
+                  }
+                  className="bg-muted/50 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={editingClient.email || ""}
+                  onChange={(e) =>
+                    setEditingClient({ ...editingClient, email: e.target.value || null })
+                  }
+                  className="bg-muted/50 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  placeholder="+55 11 99999-9999"
+                  value={editingClient.phone || ""}
+                  onChange={(e) =>
+                    setEditingClient({ ...editingClient, phone: e.target.value || null })
+                  }
+                  className="bg-muted/50 border-border"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label>Status:</Label>
+                <Badge
+                  variant="outline"
+                  className={
+                    editingClient.is_active
+                      ? "border-success/30 bg-success/10 text-success cursor-pointer"
+                      : "border-muted-foreground/30 bg-muted text-muted-foreground cursor-pointer"
+                  }
+                  onClick={() =>
+                    setEditingClient({ ...editingClient, is_active: !editingClient.is_active })
+                  }
+                >
+                  {editingClient.is_active ? "Ativo" : "Inativo"} (clique para alterar)
+                </Badge>
+              </div>
+              <div className="flex justify-end gap-4 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingClient(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-primary hover:bg-primary/90"
+                  onClick={handleEdit}
+                  disabled={!editingClient.name || updateClient.isPending}
+                >
+                  {updateClient.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Sheet */}
+      <Sheet open={!!viewingClient} onOpenChange={() => setViewingClient(null)}>
+        <SheetContent className="bg-card border-border">
+          <SheetHeader>
+            <SheetTitle className="text-foreground">Detalhes do Cliente</SheetTitle>
+          </SheetHeader>
+          {viewingClient && (
+            <div className="mt-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-primary">
+                    {viewingClient.name.charAt(0)}
+                  </span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">{viewingClient.name}</h2>
+                  <Badge
+                    variant="outline"
+                    className={
+                      viewingClient.is_active
+                        ? "border-success/30 bg-success/10 text-success"
+                        : "border-muted-foreground/30 bg-muted text-muted-foreground"
+                    }
+                  >
+                    {viewingClient.is_active ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-muted-foreground">E-mail</Label>
+                  <p className="text-foreground">{viewingClient.email || "Não informado"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Telefone</Label>
+                  <p className="text-foreground">{viewingClient.phone || "Não informado"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Criado em</Label>
+                  <p className="text-foreground">
+                    {new Date(viewingClient.created_at).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    setViewingClient(null);
+                    setEditingClient(viewingClient);
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2 text-destructive hover:text-destructive"
+                  onClick={() => {
+                    setViewingClient(null);
+                    setDeleteId(viewingClient.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
