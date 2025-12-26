@@ -158,22 +158,15 @@ export default function Connections() {
               <Badge
                 variant="outline"
                 className={cn(
-                  metaConnection?.status === "connected"
+                  metaConnection
                     ? "border-success/30 bg-success/10 text-success"
-                    : metaConnection?.status === "error"
-                    ? "border-destructive/30 bg-destructive/10 text-destructive"
                     : "border-muted-foreground/30 bg-muted text-muted-foreground"
                 )}
               >
-                {metaConnection?.status === "connected" ? (
+                {metaConnection ? (
                   <>
                     <Check className="h-3 w-3 mr-1" />
                     Conectado
-                  </>
-                ) : metaConnection?.status === "error" ? (
-                  <>
-                    <X className="h-3 w-3 mr-1" />
-                    Erro
                   </>
                 ) : (
                   "Desconectado"
@@ -182,7 +175,7 @@ export default function Connections() {
             </div>
           </CardHeader>
           <CardContent className="p-6">
-            {metaConnection?.status === "connected" ? (
+            {metaConnection ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
@@ -262,22 +255,15 @@ export default function Connections() {
               <Badge
                 variant="outline"
                 className={cn(
-                  googleConnection?.status === "connected"
+                  googleConnection
                     ? "border-success/30 bg-success/10 text-success"
-                    : googleConnection?.status === "error"
-                    ? "border-destructive/30 bg-destructive/10 text-destructive"
                     : "border-muted-foreground/30 bg-muted text-muted-foreground"
                 )}
               >
-                {googleConnection?.status === "connected" ? (
+                {googleConnection ? (
                   <>
                     <Check className="h-3 w-3 mr-1" />
                     Conectado
-                  </>
-                ) : googleConnection?.status === "error" ? (
-                  <>
-                    <X className="h-3 w-3 mr-1" />
-                    Erro
                   </>
                 ) : (
                   "Desconectado"
@@ -286,7 +272,7 @@ export default function Connections() {
             </div>
           </CardHeader>
           <CardContent className="p-6">
-            {googleConnection?.status === "connected" ? (
+            {googleConnection ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
