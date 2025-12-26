@@ -32,13 +32,28 @@ export default function Connections() {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
 
-    if (success === 'meta') {
-      toast.success('Meta Ads conectado com sucesso!');
-      setSearchParams({});
-      refetch();
+    // Aceita success=true OU success=meta
+    if (success === 'true' || success === 'meta') {
+      logDebug('OAuth callback success detected, forcing refetch...');
+      
+      // Limpa a URL imediatamente para evitar re-triggers
+      setSearchParams({}, { replace: true });
+      
+      // Força refetch múltiplas vezes para garantir que os dados sejam carregados
+      const doRefetch = async () => {
+        await refetch();
+        // Segundo refetch após 1s para garantir que o n8n terminou de salvar
+        setTimeout(() => {
+          logDebug('Secondary refetch...');
+          refetch();
+        }, 1000);
+      };
+      
+      doRefetch();
+      toast.success('Conexão realizada com sucesso!');
     } else if (error) {
       toast.error(`Erro na conexão: ${decodeURIComponent(error)}`);
-      setSearchParams({});
+      setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams, refetch]);
 
