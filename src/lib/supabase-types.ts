@@ -591,6 +591,84 @@ export interface Database {
           updated_at?: string;
         };
       };
+      campaigns: {
+        Row: {
+          id: string;
+          account_id: string;
+          campaign_id: string;
+          name: string;
+          status: string;
+          objective: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          account_id: string;
+          campaign_id: string;
+          name: string;
+          status?: string;
+          objective?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          account_id?: string;
+          campaign_id?: string;
+          name?: string;
+          status?: string;
+          objective?: string | null;
+          updated_at?: string;
+        };
+      };
+      daily_metrics: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          date: string;
+          spend: number;
+          impressions: number;
+          clicks: number;
+          leads: number;
+          purchases: number;
+          revenue: number;
+          video_plays: number;
+          cpc: number;
+          cpm: number;
+          ctr: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          date: string;
+          spend?: number;
+          impressions?: number;
+          clicks?: number;
+          leads?: number;
+          purchases?: number;
+          revenue?: number;
+          video_plays?: number;
+          cpc?: number;
+          cpm?: number;
+          ctr?: number;
+          created_at?: string;
+        };
+        Update: {
+          campaign_id?: string;
+          date?: string;
+          spend?: number;
+          impressions?: number;
+          clicks?: number;
+          leads?: number;
+          purchases?: number;
+          revenue?: number;
+          video_plays?: number;
+          cpc?: number;
+          cpm?: number;
+          ctr?: number;
+        };
+      };
     };
     Functions: {
       has_role: {
@@ -621,6 +699,8 @@ export type AlertRun = Database['public']['Tables']['alert_runs']['Row'];
 export type Notification = Database['public']['Tables']['notifications']['Row'];
 export type Subscription = Database['public']['Tables']['subscriptions']['Row'];
 export type Plan = Database['public']['Tables']['plans']['Row'];
+export type Campaign = Database['public']['Tables']['campaigns']['Row'];
+export type DailyMetric = Database['public']['Tables']['daily_metrics']['Row'];
 
 // Metrics type
 export interface AdMetrics {
