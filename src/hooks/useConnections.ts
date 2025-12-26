@@ -80,8 +80,17 @@ export function useConnections() {
     },
   });
 
-  const getConnectionByPlatform = (platform: 'meta' | 'google') =>
-    connections?.find((c) => c.platform === platform);
+  const getConnectionByPlatform = (platform: 'meta' | 'google') => {
+    // Aceita variações do nome da plataforma (meta, meta_ads, google, google_ads)
+    const platformVariants = platform === 'meta' 
+      ? ['meta', 'meta_ads'] 
+      : ['google', 'google_ads'];
+    
+    return connections?.find((c) => 
+      platformVariants.includes(c.platform) && 
+      (c.status === 'connected' || c.status === 'active')
+    );
+  };
 
   const getAccountsByConnection = (connectionId: string) =>
     adAccounts?.filter((a) => a.connection_id === connectionId) ?? [];

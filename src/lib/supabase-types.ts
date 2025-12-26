@@ -8,8 +8,8 @@ export type Json =
 
 // Enum types
 export type AppRole = 'admin' | 'moderator' | 'user';
-export type AdPlatform = 'meta' | 'google';
-export type ConnectionStatus = 'connected' | 'disconnected' | 'expired' | 'error';
+export type AdPlatform = 'meta' | 'meta_ads' | 'google' | 'google_ads';
+export type ConnectionStatus = 'connected' | 'active' | 'disconnected' | 'expired' | 'error';
 export type ReportFrequency = 'daily' | 'weekly' | 'monthly' | 'custom';
 export type ReportPeriod = 'today' | 'yesterday' | 'last_7_days' | 'last_30_days' | 'this_month' | 'last_month' | 'custom';
 export type AlertType = 'balance' | 'error' | 'performance';
