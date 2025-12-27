@@ -47,11 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(profileData);
       }
 
-      // Fetch organization membership
+      // Fetch organization membership (usando limit(1) para evitar erro com múltiplos registros)
       const { data: orgUserData, error: orgUserError } = await supabase
         .from('organization_users')
         .select('organization_id')
         .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle();
 
       console.log('Debug Org User Fetch:', { userId, orgUserData, orgUserError });

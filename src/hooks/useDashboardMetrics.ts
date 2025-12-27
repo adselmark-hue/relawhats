@@ -63,7 +63,11 @@ export function useDashboardMetrics(accountId: string | null, dateRange?: { from
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['dashboard_metrics', accountId, fromStr, toStr],
     queryFn: async () => {
+      console.log('🔍 useDashboardMetrics - accountId recebido:', accountId);
+      console.log('🔍 useDashboardMetrics - Período:', fromStr, 'até', toStr);
+      
       if (!accountId) {
+        console.warn('⚠️ useDashboardMetrics - accountId é NULL, retornando métricas vazias');
         return {
           metrics: getEmptyMetrics(),
           chartData: [],
@@ -71,6 +75,7 @@ export function useDashboardMetrics(accountId: string | null, dateRange?: { from
       }
 
       // 1. Buscar campanhas da conta
+      console.log('🔍 Buscando campanhas para account_id:', accountId);
       const { data: campaigns, error: campError } = await supabase
         .from('campaigns')
         .select('id')
