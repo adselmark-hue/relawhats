@@ -19,7 +19,19 @@ export function useAdAccounts() {
         .order('name', { ascending: true });
 
       if (error) throw error;
-      return (data ?? []) as AdAccount[];
+      
+      // Deduplica por account_id (remove duplicados mantendo o primeiro)
+      const seen = new Set<string>();
+      const uniqueAccounts = (data ?? []).filter((account) => {
+        if (seen.has(account.account_id)) {
+          return false;
+        }
+        seen.add(account.account_id);
+        return true;
+      });
+      
+      console.log('🔍 Ad Accounts - Total:', data?.length, '| Únicos:', uniqueAccounts.length);
+      return uniqueAccounts as AdAccount[];
     },
     enabled: !!organizationId,
   });
