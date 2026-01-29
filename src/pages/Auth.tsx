@@ -237,7 +237,7 @@ export default function Auth() {
 
         <Card className="bg-card border-border">
           <CardHeader className="text-center">
-            <CardTitle className="text-foreground">Bem-vindo amigo!</CardTitle>
+            <CardTitle className="text-foreground">Bom dia, Bem-vindo amigo!</CardTitle>
             <CardDescription className="text-muted-foreground">
               Entre na sua conta para continuar
             </CardDescription>
