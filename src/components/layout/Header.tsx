@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Search, X, AlertCircle, CheckCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,15 @@ const mockNotifications: Notification[] = [
 
 export function Header() {
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const markAsRead = (id: string) => {
     setNotifications((prev) =>
@@ -96,6 +104,10 @@ export function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
+          {/* Clock */}
+          <div className="text-sm font-medium text-muted-foreground">
+            {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </div>
           {/* Notifications */}
           <Sheet>
             <SheetTrigger asChild>
